@@ -3,12 +3,13 @@ import { Check } from "lucide-react";
 import { Header } from "./components/Header";
 import { Hero } from "./components/Hero";
 import { TyreFinder } from "./components/TyreFinder";
+import { FeaturedRanges } from "./components/FeaturedRanges";
 import { CombosSection } from "./components/CombosSection";
-import { PerformanceGallery } from "./components/PerformanceGallery";
 import { TyresCatalog } from "./components/TyresCatalog";
-import { VredesteinHeritage } from "./components/VredesteinHeritage";
+import { PerformanceGallery } from "./components/PerformanceGallery";
 import { AccessoriesSection } from "./components/AccessoriesSection";
 import { WorkshopSection } from "./components/WorkshopSection";
+import { VredesteinHeritage } from "./components/VredesteinHeritage";
 import { Footer } from "./components/Footer";
 import { CartDrawer } from "./components/CartDrawer";
 import { MobileQuickBar } from "./components/MobileQuickBar";
@@ -221,20 +222,14 @@ export default function App() {
         totalCartCount={totalCartCount}
         onOpenCart={() => setIsCartOpen(true)}
         onScrollTo={scrollTo}
-        currentRange={range}
-        onSelectRange={(r) => {
-          setRange(r);
-          setSelectedSize("All sizes");
-          setSelectedPosition("All");
-        }}
       />
 
       {/* Main Body */}
       <main id="top">
-        {/* Hero Section */}
+        {/* 1. Hero Section */}
         <Hero onScrollTo={scrollTo} />
 
-        {/* Tyre Finder Section */}
+        {/* 2. Tyre Finder Section */}
         <TyreFinder
           finderPosition={finderPosition}
           finderWidth={finderWidth}
@@ -246,16 +241,23 @@ export default function App() {
           onReset={handleResetFinder}
         />
 
-        {/* Combos Deals Section */}
+        {/* 3. Featured Tyres / Ranges Section */}
+        <FeaturedRanges
+          onSelectRange={(r) => {
+            setRange(r);
+            setSelectedSize("All sizes");
+            setSelectedPosition("All");
+          }}
+          onScrollToTyres={() => scrollTo("tyres")}
+        />
+
+        {/* 4. Combos Deals Section */}
         <CombosSection
           combos={tyreCombos}
           onAddCombo={addComboToCart}
         />
 
-        {/* Performance & Action Gallery */}
-        <PerformanceGallery onScrollToTyres={() => scrollTo("tyres")} />
-
-        {/* Tyres Catalog Section */}
+        {/* 5. Tyres Catalog Section */}
         <TyresCatalog
           range={range}
           selectedSize={selectedSize}
@@ -275,20 +277,23 @@ export default function App() {
           }}
         />
 
-        {/* Made in the Netherlands / Heritage Section */}
-        <VredesteinHeritage
-          onScrollToCombos={() => scrollTo("combos")}
-          onScrollToTyres={() => scrollTo("tyres")}
-        />
+        {/* 6. Performance & Brand Credibility Gallery */}
+        <PerformanceGallery onScrollToTyres={() => scrollTo("tyres")} />
 
-        {/* Accessories Section */}
+        {/* 7. Accessories Section */}
         <AccessoriesSection
           accessories={accessoryCategories}
           onAddAccessory={addAccessoryToCart}
         />
 
-        {/* Workshop & Selby Details Section */}
+        {/* 8. Workshop & Selby Details Section */}
         <WorkshopSection />
+
+        {/* 9. Made in the Netherlands / Heritage Section */}
+        <VredesteinHeritage
+          onScrollToCombos={() => scrollTo("combos")}
+          onScrollToTyres={() => scrollTo("tyres")}
+        />
       </main>
 
       {/* Footer */}

@@ -1,161 +1,301 @@
-import { useState } from "react";
-import { Phone, Search, ShoppingBag, Menu, X, Flame } from "lucide-react";
-import type { Range } from "../types";
+import { useState, useEffect, useRef } from "react";
+import { Phone, Search, ShoppingBag, Menu, X, ArrowRight } from "lucide-react";
 import logoAsset from "../assets/rc-logo.png";
+import { tyreProducts, tyreCombos } from "../data/products";
 
 interface HeaderProps {
   totalCartCount: number;
   onOpenCart: () => void;
   onScrollTo: (id: string) => void;
-  currentRange: Range;
-  onSelectRange: (range: Range) => void;
 }
 
 export function Header({
   totalCartCount,
   onOpenCart,
   onScrollTo,
-  currentRange,
-  onSelectRange,
 }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeNav, setActiveNav] = useState<string>("tyres");
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus search input when search popover opens
+  useEffect(() => {
+    if (searchOpen) {
+      setTimeout(() => searchInputRef.current?.focus(), 80);
+    }
+  }, [searchOpen]);
+
+  // Track active section on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      const sections = ["finder", "tyres", "combos", "accessories", "workshop"];
+      const scrollPos = window.scrollY + 200;
+
+      for (const sectionId of sections) {
+        const el = document.getElementById(sectionId);
+        if (el) {
+          const top = el.offsetTop;
+          const height = el.offsetHeight;
+          if (scrollPos >= top && scrollPos < top + height) {
+            setActiveNav(sectionId);
+            break;
+          }
+        }
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const handleNavClick = (id: string) => {
+    setActiveNav(id);
     onScrollTo(id);
     setMobileMenuOpen(false);
+    setSearchOpen(false);
   };
 
+  // Quick search matching results
+  const searchResults = searchQuery.trim()
+    ? tyreProducts.filter((product) => {
+        const query = searchQuery.toLowerCase();
+        return (
+          product.name.toLowerCase().includes(query) ||
+          product.size.toLowerCase().includes(query) ||
+          product.range.toLowerCase().includes(query) ||
+          product.position.toLowerCase().includes(query) ||
+          product.features.some((f) => f.toLowerCase().includes(query))
+        );
+      }).slice(0, 5)
+    : [];
+
+  const comboResults = searchQuery.trim()
+    ? tyreCombos.filter((combo) => {
+        const query = searchQuery.toLowerCase();
+        return (
+          combo.title.toLowerCase().includes(query) ||
+          combo.frontSize.toLowerCase().includes(query) ||
+          combo.rearSize.toLowerCase().includes(query) ||
+          combo.popularBikes.toLowerCase().includes(query)
+        );
+      }).slice(0, 2)
+    : [];
+
   return (
-    <header className="sticky top-0 z-40 border-b border-neutral-800 bg-neutral-950/95 text-white shadow-2xl backdrop-blur-md">
-      {/* Top micro announcement bar */}
-      <div className="border-b border-neutral-800/80 bg-neutral-900/90 py-1.5 px-4 text-xs font-semibold">
-        <div className="mx-auto flex max-w-[1400px] items-center justify-between text-[11px] sm:text-xs">
-          <div className="flex items-center gap-2 text-neutral-300">
-            <span className="inline-block size-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-bold text-white uppercase tracking-wider">Selby Workshop Open:</span>
-            <span className="hidden sm:inline text-neutral-400">Direct Vredestein Motorcycle Tyre Importer &amp; Fitment</span>
-            <span className="sm:hidden text-neutral-400">Direct Vredestein Importer</span>
+    <header className="sticky top-0 z-40 bg-neutral-950/95 text-white border-b border-neutral-800/90 shadow-xl backdrop-blur-md">
+      {/* LAYER 1 — UTILITY BAR */}
+      <div className="border-b border-neutral-800/70 bg-neutral-900/60 py-1.5 px-4 text-xs font-normal">
+        <div className="mx-auto flex max-w-[1400px] items-center justify-between text-[11px]">
+          {/* Left: Workshop & Fitment Available */}
+          <div className="flex items-center gap-2 text-neutral-400">
+            <span className="font-medium text-neutral-200">Selby • Johannesburg</span>
+            <span className="text-neutral-600 font-light">•</span>
+            <span className="text-neutral-400">Workshop &amp; Fitment Available</span>
           </div>
-          <div className="flex items-center gap-4">
+
+          {/* Right: WhatsApp & Optional Phone */}
+          <div className="flex items-center gap-4 text-neutral-300">
             <a
               href="https://wa.me/27832273237?text=Hi%20Costa,%20I%20have%20an%20enquiry%20regarding%20Vredestein%20motorcycle%20tyres"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-amber-400 hover:text-amber-300 font-bold uppercase tracking-wider flex items-center gap-1 transition-colors"
+              className="text-neutral-300 hover:text-white transition-colors flex items-center gap-1.5"
             >
-              <span>WhatsApp Costa:</span>
-              <span className="text-white">+27 83 227 3237</span>
+              <span className="size-1.5 rounded-full bg-emerald-400 inline-block" />
+              <span>WhatsApp Us</span>
+            </a>
+            <span className="hidden sm:inline text-neutral-700">|</span>
+            <a
+              href="tel:+27832273237"
+              className="hidden sm:inline text-neutral-400 hover:text-neutral-200 transition-colors"
+            >
+              +27 83 227 3237
             </a>
           </div>
         </div>
       </div>
 
-      {/* Main navigation container */}
+      {/* LAYER 2 — PRIMARY NAVIGATION */}
       <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
-        <div className="flex min-h-20 items-center justify-between gap-4 py-2">
-          {/* Brand Logo & Identification */}
-          <div className="flex min-w-0 items-center gap-3">
+        <div className="flex h-18 items-center justify-between gap-4">
+          {/* Brand Logo on Left */}
+          <div className="flex items-center gap-3">
             <button
-              aria-label="Go to top"
+              aria-label="Go to top of page"
               onClick={() => handleNavClick("top")}
-              className="shrink-0 bg-transparent transition-transform hover:scale-105"
+              className="shrink-0 transition-opacity hover:opacity-90"
             >
               <img
                 src={logoAsset}
                 alt="R&C Commodities logo"
-                className="h-14 sm:h-16 w-auto object-contain"
+                className="h-11 sm:h-12 w-auto object-contain"
               />
             </button>
-            <div className="min-w-0 border-l-2 border-primary/80 pl-3">
-              <span className="block truncate font-display text-base uppercase leading-none tracking-tight sm:text-xl text-white">
-                <span className="text-primary font-black">R&amp;C</span> Commodities
+            <div className="hidden md:block border-l border-neutral-800 pl-3">
+              <span className="block font-display text-sm uppercase tracking-tight text-white leading-tight">
+                <span className="text-primary font-bold">R&amp;C</span> Commodities
               </span>
-              <p className="mt-1 truncate text-[9px] font-black uppercase tracking-[0.2em] text-amber-400 sm:text-[10px]">
-                PREMIUM MOTORCYCLE TYRES &amp; ACCESSORIES
-              </p>
+              <span className="block text-[10px] uppercase tracking-wider text-neutral-400 font-medium">
+                Premium Motorcycle Tyres &amp; Accessories
+              </span>
             </div>
           </div>
 
-          {/* Desktop Navigation Links */}
-          <nav className="hidden items-center gap-1 rounded-md border border-neutral-800 bg-neutral-900/80 p-1 lg:flex shadow-inner">
-            <button
-              onClick={() => handleNavClick("tyres")}
-              className="rounded px-3.5 py-2 text-xs font-black uppercase tracking-[0.1em] text-neutral-200 transition-colors hover:bg-neutral-800 hover:text-white"
-            >
-              Tyres
-            </button>
-            <button
-              onClick={() => handleNavClick("combos")}
-              className="relative flex items-center gap-1.5 rounded px-3.5 py-2 text-xs font-black uppercase tracking-[0.1em] text-amber-300 transition-colors hover:bg-neutral-800 hover:text-white"
-            >
-              <Flame size={13} className="text-amber-400" />
-              <span>Combos</span>
-              <span className="rounded-full bg-amber-400 px-1.5 py-0.2 text-[9px] font-black text-neutral-950 uppercase">
-                Save R650
-              </span>
-            </button>
-            <button
-              onClick={() => handleNavClick("finder")}
-              className="rounded px-3.5 py-2 text-xs font-black uppercase tracking-[0.1em] text-neutral-200 transition-colors hover:bg-neutral-800 hover:text-white"
-            >
-              Tyre Finder
-            </button>
-            <button
-              onClick={() => handleNavClick("netherlands")}
-              className="rounded px-3.5 py-2 text-xs font-black uppercase tracking-[0.1em] text-neutral-200 transition-colors hover:bg-neutral-800 hover:text-white"
-            >
-              Dutch Heritage
-            </button>
-            <button
-              onClick={() => handleNavClick("accessories")}
-              className="rounded px-3.5 py-2 text-xs font-black uppercase tracking-[0.1em] text-neutral-200 transition-colors hover:bg-neutral-800 hover:text-white"
-            >
-              Accessories
-            </button>
-            <button
-              onClick={() => handleNavClick("workshop")}
-              className="rounded px-3.5 py-2 text-xs font-black uppercase tracking-[0.1em] text-neutral-200 transition-colors hover:bg-neutral-800 hover:text-white"
-            >
-              Workshop
-            </button>
+          {/* Desktop Primary Navigation */}
+          <nav className="hidden lg:flex items-center gap-6" aria-label="Primary navigation">
+            {[
+              { label: "Tyres", id: "tyres" },
+              { label: "Combos", id: "combos" },
+              { label: "Find Your Tyre", id: "finder" },
+              { label: "Accessories", id: "accessories" },
+              { label: "Workshop", id: "workshop" },
+            ].map((item) => {
+              const isActive = activeNav === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleNavClick(item.id)}
+                  className={`relative py-2 text-sm font-medium transition-colors ${
+                    isActive
+                      ? "text-white font-semibold"
+                      : "text-neutral-400 hover:text-white"
+                  }`}
+                >
+                  <span>{item.label}</span>
+                  {isActive && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute bottom-0 inset-x-0 h-0.5 bg-primary rounded-full"
+                    />
+                  )}
+                </button>
+              );
+            })}
           </nav>
 
-          {/* Right Action Icons & Direct Fitment Call */}
-          <div className="flex items-center gap-2.5">
-            <a
-              href="tel:+27832273237"
-              className="hidden xl:inline-flex items-center gap-2 rounded-md border border-neutral-700 bg-neutral-900 px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-neutral-200 hover:border-amber-400 hover:text-white transition-colors"
-            >
-              <Phone size={14} className="text-primary" />
-              <span>Call Costa</span>
-            </a>
+          {/* Right: Search & Cart Utility Actions */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Search Icon Button */}
+            <div className="relative">
+              <button
+                aria-label="Search tyre catalog"
+                onClick={() => setSearchOpen(!searchOpen)}
+                className={`grid size-9 sm:size-10 place-items-center rounded-lg text-neutral-300 hover:text-white hover:bg-neutral-800/80 transition-colors ${
+                  searchOpen ? "bg-neutral-800 text-white" : ""
+                }`}
+              >
+                <Search size={19} />
+              </button>
 
-            <button
-              aria-label="Search tyre sizes"
-              onClick={() => handleNavClick("finder")}
-              className="grid size-10 place-items-center rounded-md border border-neutral-800 bg-neutral-900 text-neutral-200 hover:bg-neutral-800 hover:text-white transition-colors"
-            >
-              <Search size={18} />
-            </button>
+              {/* Quick Search Popover */}
+              {searchOpen && (
+                <div className="absolute right-0 top-12 z-50 w-80 sm:w-96 rounded-xl border border-neutral-800 bg-neutral-900 p-3 shadow-2xl animate-in fade-in slide-in-from-top-2">
+                  <div className="relative">
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search tyre size (e.g. 190/55, 120/70, ST, NS)..."
+                      className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3.5 py-2.5 text-xs text-white placeholder-neutral-500 outline-none focus:border-primary"
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery("")}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white text-xs"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
 
+                  {/* Results List */}
+                  {searchQuery.trim() && (
+                    <div className="mt-2.5 max-h-60 overflow-y-auto divide-y divide-neutral-800/60 text-xs">
+                      {searchResults.length === 0 && comboResults.length === 0 ? (
+                        <p className="py-3 text-center text-neutral-400">
+                          No matching tyres found.
+                        </p>
+                      ) : (
+                        <>
+                          {searchResults.map((tyre) => (
+                            <button
+                              key={tyre.id}
+                              onClick={() => handleNavClick("tyres")}
+                              className="w-full text-left py-2 px-1.5 flex items-center justify-between hover:bg-neutral-800/50 rounded transition-colors group"
+                            >
+                              <div>
+                                <span className="font-semibold text-white group-hover:text-primary">
+                                  {tyre.name} {tyre.size}
+                                </span>
+                                <span className="text-[10px] text-neutral-400 block">
+                                  {tyre.position} · Centauro {tyre.range}
+                                </span>
+                              </div>
+                              <span className="font-semibold text-neutral-200">
+                                R{tyre.price.toLocaleString("en-ZA")}
+                              </span>
+                            </button>
+                          ))}
+                          {comboResults.map((c) => (
+                            <button
+                              key={c.id}
+                              onClick={() => handleNavClick("combos")}
+                              className="w-full text-left py-2 px-1.5 flex items-center justify-between hover:bg-neutral-800/50 rounded transition-colors group"
+                            >
+                              <div>
+                                <span className="font-semibold text-white group-hover:text-amber-300">
+                                  Combo: {c.frontSize} + {c.rearSize}
+                                </span>
+                                <span className="text-[10px] text-amber-400/80 block">
+                                  Matched Pair (Save R{c.savings})
+                                </span>
+                              </div>
+                              <span className="font-semibold text-white">
+                                R{c.price.toLocaleString("en-ZA")}
+                              </span>
+                            </button>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="mt-2.5 pt-2 border-t border-neutral-800 flex justify-between items-center text-[11px] text-neutral-400">
+                    <span>Press Tab or click to view</span>
+                    <button
+                      onClick={() => handleNavClick("finder")}
+                      className="text-primary hover:underline font-medium inline-flex items-center gap-1"
+                    >
+                      Use Tyre Finder <ArrowRight size={12} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Cart Button */}
             <button
-              aria-label={`Cart with ${totalCartCount} items`}
+              aria-label={`Shopping cart with ${totalCartCount} items`}
               onClick={onOpenCart}
-              className="relative flex items-center gap-2 h-10 px-3.5 rounded-md bg-primary text-white font-bold text-xs uppercase tracking-wider hover:bg-primary-hover transition-colors shadow-lg"
+              className="relative flex items-center gap-2 h-9 sm:h-10 px-3 sm:px-3.5 rounded-lg border border-neutral-800 bg-neutral-900 text-neutral-200 hover:text-white hover:border-neutral-700 hover:bg-neutral-850 transition-colors"
             >
-              <ShoppingBag size={17} />
-              <span className="hidden sm:inline">Cart</span>
+              <ShoppingBag size={18} />
+              <span className="hidden sm:inline text-xs font-semibold">Cart</span>
               {totalCartCount > 0 ? (
-                <span className="grid size-5 place-items-center rounded-full bg-amber-400 text-[11px] font-black text-neutral-950">
+                <span className="grid size-5 place-items-center rounded-full bg-primary text-[11px] font-bold text-white">
                   {totalCartCount}
                 </span>
               ) : null}
             </button>
 
+            {/* Mobile Menu Toggle Button */}
             <button
               aria-label="Toggle navigation menu"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="grid size-10 place-items-center rounded-md border border-neutral-800 bg-neutral-900 text-white hover:bg-neutral-800 lg:hidden transition-colors"
+              className="grid size-9 sm:size-10 place-items-center rounded-lg text-neutral-300 hover:text-white hover:bg-neutral-850 lg:hidden transition-colors"
             >
               {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
@@ -164,87 +304,47 @@ export function Header({
 
         {/* Mobile Dropdown Menu */}
         {mobileMenuOpen && (
-          <nav className="border-t border-neutral-800 bg-neutral-900/98 p-3 lg:hidden space-y-1 rounded-b-xl shadow-2xl">
+          <nav
+            aria-label="Mobile navigation"
+            className="border-t border-neutral-800 bg-neutral-950/98 px-2 py-3 lg:hidden space-y-1 shadow-2xl rounded-b-xl"
+          >
             {[
-              ["All Tyres Catalog", "tyres"],
-              ["Vredestein Combos (Save R650)", "combos"],
-              ["Precision Tyre Finder", "finder"],
-              ["Made in the Netherlands (Since 1909)", "netherlands"],
-              ["Motorcycle Accessories", "accessories"],
-              ["Workshop & Selby Fitment", "workshop"],
-            ].map(([label, id]) => (
+              { label: "Tyres", id: "tyres" },
+              { label: "Combos", id: "combos" },
+              { label: "Find Your Tyre", id: "finder" },
+              { label: "Accessories", id: "accessories" },
+              { label: "Workshop", id: "workshop" },
+            ].map((item) => (
               <button
-                key={id}
-                onClick={() => handleNavClick(id)}
-                className="w-full text-left rounded-md px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-neutral-200 hover:bg-neutral-800 hover:text-amber-400 transition-colors"
+                key={item.id}
+                onClick={() => handleNavClick(item.id)}
+                className="w-full text-left rounded-lg px-3.5 py-2.5 text-sm font-medium text-neutral-200 hover:bg-neutral-900 hover:text-white transition-colors flex items-center justify-between"
               >
-                {label}
+                <span>{item.label}</span>
+                <ArrowRight size={14} className="text-neutral-500" />
               </button>
             ))}
-            <div className="pt-2 border-t border-neutral-800 flex flex-col gap-2">
+
+            {/* Separated Contact Area */}
+            <div className="pt-3 mt-2 border-t border-neutral-800/80 flex flex-col gap-2">
               <a
-                href="https://wa.me/27832273237?text=Hi%20Costa,%20I%20have%20an%20enquiry%20regarding%20Vredestein%20tyres"
+                href="https://wa.me/27832273237?text=Hi%20Costa,%20I%20have%20an%20enquiry%20regarding%20Vredestein%20motorcycle%20tyres"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white"
+                className="flex items-center justify-center gap-2 rounded-lg bg-emerald-600/90 hover:bg-emerald-600 px-4 py-2.5 text-xs font-semibold text-white transition-colors"
               >
-                WhatsApp Costa (+27 83 227 3237)
+                <span>WhatsApp Costa (+27 83 227 3237)</span>
               </a>
               <a
                 href="tel:+27832273237"
-                className="flex items-center justify-center gap-2 rounded-md border border-neutral-700 bg-neutral-800 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white"
+                className="flex items-center justify-center gap-2 rounded-lg border border-neutral-800 bg-neutral-900 hover:bg-neutral-850 px-4 py-2.5 text-xs font-semibold text-neutral-200 transition-colors"
               >
-                <Phone size={14} className="text-primary" /> Call Workshop Directly
+                <Phone size={14} className="text-neutral-400" />
+                <span>Call Workshop</span>
               </a>
             </div>
           </nav>
         )}
-
-        {/* Quick Range Filter Ribbon */}
-        <div className="flex min-h-12 items-center gap-2 overflow-x-auto border-t border-neutral-800/80 py-1.5 text-xs scrollbar-none">
-          <span className="shrink-0 font-black uppercase tracking-[0.14em] text-amber-400 text-[11px]">
-            Quick Range Filter:
-          </span>
-          <span className="h-3.5 w-px shrink-0 bg-neutral-700" />
-          
-          {(["All", "NS", "ST"] as Range[]).map((item) => (
-            <button
-              key={item}
-              onClick={() => {
-                onSelectRange(item);
-                onScrollTo("tyres");
-              }}
-              className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-black uppercase tracking-wider transition-all ${
-                currentRange === item
-                  ? "bg-primary text-white shadow-md ring-1 ring-primary/50"
-                  : "bg-neutral-900 border border-neutral-800 text-neutral-300 hover:border-neutral-700 hover:text-white"
-              }`}
-            >
-              {item === "All" ? "All Fitments" : `Centauro ${item}`}
-            </button>
-          ))}
-
-          <button
-            onClick={() => onScrollTo("combos")}
-            className="shrink-0 flex items-center gap-1 rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-amber-300 hover:bg-amber-500 hover:text-neutral-950 transition-colors"
-          >
-            <Flame size={12} /> Combos (Pairs from R2,940)
-          </button>
-
-          <button
-            onClick={() => onScrollTo("finder")}
-            className="shrink-0 rounded-md border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-neutral-300 hover:border-neutral-700 hover:text-white transition-colors"
-          >
-            Find My Tyre Size
-          </button>
-
-          <button
-            onClick={() => onScrollTo("workshop")}
-            className="shrink-0 rounded-md border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-neutral-300 hover:border-neutral-700 hover:text-white transition-colors"
-          >
-            Selby Workshop
-          </button>
-        </div>
       </div>
     </header>
   );

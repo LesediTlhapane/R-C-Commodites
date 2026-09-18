@@ -3,12 +3,20 @@ import riderTrackAsset from "../assets/a2e33fb2f4a33ac97cd10c97f2d215ed.jpg";
 import tyreMacroAsset from "../assets/0203d32f4212b2e0b2a9df4b0f0db2f3.jpg";
 import superbikeAsset from "../assets/01ecd86a0585bbcc8e8bb93c9de047f7.jpg";
 import moodyBikeAsset from "../assets/4298f1d6724ee05cbb8ca427a0471e9c.jpg";
+import { resolveAsset } from "../lib/assetHelper";
 
 interface PerformanceGalleryProps {
   onScrollToTyres: () => void;
 }
 
 export function PerformanceGallery({ onScrollToTyres }: PerformanceGalleryProps) {
+  const card1Img = resolveAsset(["cf1351f6", "cf13", "nissin", "front"], riderTrackAsset);
+  const card2Img = resolveAsset(["IMG_4940", "IMG4940", "4940"], tyreMacroAsset);
+  const card3Img = resolveAsset(["4441b341", "4441", "ducati", "stand"], superbikeAsset);
+  const card4Img = resolveAsset(["13cc2253", "13cc", "swingarm", "chain"], moodyBikeAsset);
+  const card5Img = resolveAsset(["e086514c", "e086", "exhaust"], riderTrackAsset);
+  const card6Img = resolveAsset(["IMG_4939", "IMG4939", "4939", "tarmac"], superbikeAsset);
+
   return (
     <section className="border-b border-border bg-neutral-900 text-white py-14 sm:py-20 relative overflow-hidden">
       <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
@@ -35,12 +43,12 @@ export function PerformanceGallery({ onScrollToTyres }: PerformanceGalleryProps)
           </div>
         </div>
 
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Card 1: Track cornering */}
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Card 1: Track cornering & Front Braking */}
           <div className="group relative overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-950 shadow-xl">
             <div className="aspect-[4/5] overflow-hidden">
               <img
-                src={riderTrackAsset}
+                src={card1Img}
                 alt="Motorcycle track cornering with knee-down lean angle"
                 className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
               />
@@ -58,7 +66,7 @@ export function PerformanceGallery({ onScrollToTyres }: PerformanceGalleryProps)
           <div className="group relative overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-950 shadow-xl">
             <div className="aspect-[4/5] overflow-hidden">
               <img
-                src={tyreMacroAsset}
+                src={card2Img}
                 alt="Vredestein Centauro tread sipe pattern and silica compound macro"
                 className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
               />
@@ -76,7 +84,7 @@ export function PerformanceGallery({ onScrollToTyres }: PerformanceGalleryProps)
           <div className="group relative overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-950 shadow-xl">
             <div className="aspect-[4/5] overflow-hidden">
               <img
-                src={superbikeAsset}
+                src={card3Img}
                 alt="High performance superbike fitted with Centauro performance tyres"
                 className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
               />
@@ -90,12 +98,48 @@ export function PerformanceGallery({ onScrollToTyres }: PerformanceGalleryProps)
             </div>
           </div>
 
-          {/* Card 4: High-Speed Stance */}
+          {/* Card 4: Swingarm & Drive Chain */}
           <div className="group relative overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-950 shadow-xl">
             <div className="aspect-[4/5] overflow-hidden">
               <img
-                src={moodyBikeAsset}
-                alt="Sportbike in aerodynamic focus"
+                src={card4Img}
+                alt="Carbon fiber swingarm and tyre drive surface"
+                className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+              />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/40 to-transparent flex flex-col justify-end p-5">
+              <span className="text-[10px] font-black uppercase tracking-wider text-primary">Mechanical Drive</span>
+              <h4 className="font-display text-base font-bold text-white mt-0.5">High-Torque Transfer</h4>
+              <p className="text-xs text-neutral-300 mt-1 line-clamp-2 leading-relaxed">
+                Engineered carcass structure handles brutal low-gear drive out of turns without spinning up.
+              </p>
+            </div>
+          </div>
+
+          {/* Card 5: Thermal Endurance */}
+          <div className="group relative overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-950 shadow-xl">
+            <div className="aspect-[4/5] overflow-hidden">
+              <img
+                src={card5Img}
+                alt="Motorcycle tyre heat dissipation and scrubbed surface"
+                className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+              />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/40 to-transparent flex flex-col justify-end p-5">
+              <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">Thermal Endurance</span>
+              <h4 className="font-display text-base font-bold text-white mt-0.5">Even Shoulder Wear</h4>
+              <p className="text-xs text-neutral-300 mt-1 line-clamp-2 leading-relaxed">
+                Advanced silica compounds resist thermal degradation even under aggressive acceleration.
+              </p>
+            </div>
+          </div>
+
+          {/* Card 6: Apex Drive Stance */}
+          <div className="group relative overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-950 shadow-xl">
+            <div className="aspect-[4/5] overflow-hidden">
+              <img
+                src={card6Img}
+                alt="Sportbike tyre contact patch at high speed"
                 className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
               />
             </div>

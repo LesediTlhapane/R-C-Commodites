@@ -347,16 +347,22 @@ export function TyresCatalog({
                     <div className="p-5">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <h3 className="font-display text-lg uppercase tracking-tight text-foreground">
+                          <span className="text-[11px] font-medium uppercase tracking-wider text-foreground-muted block">
+                            {product.range === "NS" ? "Centauro NS · Super Sport" : "Centauro ST · Sport Touring"} · {product.position}
+                          </span>
+                          <h3 className="font-display text-lg uppercase tracking-tight text-foreground mt-0.5">
                             {product.name}
                           </h3>
-                          <p className="mt-0.5 font-display text-base font-semibold text-primary">
+                          <p className="mt-1 font-display text-xl font-bold text-primary">
                             {product.size}
                           </p>
                         </div>
-                        <strong className="font-display text-xl text-foreground shrink-0">
-                          R{product.price.toLocaleString("en-ZA")}.00
-                        </strong>
+                        <div className="text-right shrink-0">
+                          <span className="text-[10px] uppercase font-medium text-foreground-muted block">Selling Price</span>
+                          <strong className="font-display text-xl font-bold text-foreground block">
+                            R{product.price.toLocaleString("en-ZA")}.00
+                          </strong>
+                        </div>
                       </div>
 
                       {/* Feature Chips */}
@@ -364,7 +370,7 @@ export function TyresCatalog({
                         {product.features.map((feat, idx) => (
                           <span
                             key={idx}
-                            className="rounded-md bg-surface-soft px-2.5 py-1 text-[11px] text-foreground-muted font-medium"
+                            className="rounded-md bg-surface-soft px-2.5 py-1 text-[11px] text-foreground-muted font-normal"
                           >
                             {feat}
                           </span>

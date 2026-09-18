@@ -1,8 +1,12 @@
 import { Wrench, Truck, Check, Phone } from "lucide-react";
 import superbikeAsset from "../assets/01ecd86a0585bbcc8e8bb93c9de047f7.jpg";
 import detailAsset from "../assets/Centauro_detail.jpeg";
+import { resolveAsset } from "../lib/assetHelper";
 
 export function WorkshopSection() {
+  const workshopBayImage = resolveAsset(["IMG_4951", "IMG4951", "4951", "fitment"], superbikeAsset);
+  const warehouseStockImage = resolveAsset(["IMG_4936", "IMG4936", "4936", "warehouse"], detailAsset);
+
   return (
     <section id="workshop" className="mx-auto max-w-[1400px] px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
       <div className="grid gap-8 lg:grid-cols-12 items-stretch">
@@ -10,21 +14,21 @@ export function WorkshopSection() {
         <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="overflow-hidden rounded-2xl border border-border bg-neutral-950 shadow-xl relative group">
             <img
-              src={superbikeAsset}
-              alt="High performance superbike in workshop bay ready for tyre fitment"
+              src={workshopBayImage}
+              alt="Motorcycle tyre fitment and bead seating on pneumatic machine in Selby workshop"
               className="h-full min-h-[360px] w-full object-cover transition-transform duration-500 group-hover:scale-105"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/30 to-transparent flex flex-col justify-end p-5 text-white">
               <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">Selby Fitment Bay</span>
               <strong className="font-display text-base text-white">Superbike Specialist Care</strong>
-              <span className="text-xs text-neutral-300 mt-0.5">Static &amp; dynamic precision wheel balancing</span>
+              <span className="text-xs text-neutral-300 mt-0.5">Pneumatic bead breaker &amp; precision wheel balancing</span>
             </div>
           </div>
 
           <div className="overflow-hidden rounded-2xl border border-border bg-neutral-950 shadow-xl relative group">
             <img
-              src={detailAsset}
-              alt="Vredestein Centauro motorcycle tyre detail and tread pattern"
+              src={warehouseStockImage}
+              alt="Genuine European Vredestein Centauro motorcycle tyre stock in warehouse"
               className="h-full min-h-[360px] w-full object-cover transition-transform duration-500 group-hover:scale-105"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/30 to-transparent flex flex-col justify-end p-5 text-white">

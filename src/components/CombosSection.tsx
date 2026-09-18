@@ -1,6 +1,8 @@
 import { Flame, Tag, ShoppingBag, Phone, ShieldCheck, Check } from "lucide-react";
 import type { TyreCombo } from "../types";
 import riderTrackAsset from "../assets/a2e33fb2f4a33ac97cd10c97f2d215ed.jpg";
+import detailAsset from "../assets/Centauro_detail.jpeg";
+import { resolveAsset } from "../lib/assetHelper";
 
 interface CombosSectionProps {
   combos: TyreCombo[];
@@ -8,15 +10,18 @@ interface CombosSectionProps {
 }
 
 export function CombosSection({ combos, onAddCombo }: CombosSectionProps) {
+  const comboBackdrop = resolveAsset(["IMG_4936", "IMG4936", "4936", "warehouse"], riderTrackAsset);
+  const pairStockPhoto = resolveAsset(["IMG_4936", "IMG4936", "4936"], detailAsset);
+
   return (
     <section id="combos" className="relative overflow-hidden border-b border-neutral-800 bg-neutral-950 text-white py-16 sm:py-24">
       {/* Background graphic styling */}
       <div className="absolute inset-0 opacity-10 pointer-events-none bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:24px_24px]" />
       <img
-        src={riderTrackAsset}
+        src={comboBackdrop}
         alt=""
         aria-hidden="true"
-        className="absolute -right-20 -top-10 h-[700px] w-auto object-cover opacity-25 pointer-events-none filter blur-[0.5px] mix-blend-screen hidden lg:block"
+        className="absolute -right-20 -top-10 h-[700px] w-auto object-cover opacity-20 pointer-events-none filter blur-[0.5px] mix-blend-screen hidden lg:block"
       />
 
       <div className="relative mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
@@ -71,33 +76,51 @@ export function CombosSection({ combos, onAddCombo }: CombosSectionProps) {
                   </div>
 
                   {/* Title & Subtitle */}
-                  <h3 className="font-display text-xl sm:text-2xl uppercase tracking-tight text-white group-hover:text-amber-300 transition-colors">
-                    {combo.frontSize} <span className="text-neutral-500 font-sans font-light">:</span> {combo.rearSize}
-                  </h3>
-                  <p className="mt-1 text-xs text-neutral-400">
-                    {combo.subtitle}
-                  </p>
-
-                  {/* Front & Rear Breakdown Chips */}
-                  <div className="mt-5 grid grid-cols-2 gap-2.5 text-xs">
-                    <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-3">
-                      <span className="text-[10px] uppercase tracking-wider font-bold text-neutral-400 block">
-                        Front Tyre
-                      </span>
-                      <strong className="font-bold text-white text-xs sm:text-sm mt-0.5 block">
-                        {combo.frontSize}
-                      </strong>
-                      <span className="text-[10px] text-amber-400 font-semibold block mt-0.5">Centauro ST</span>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="font-display text-xl sm:text-2xl uppercase tracking-tight text-white group-hover:text-amber-300 transition-colors">
+                        {combo.frontSize} <span className="text-neutral-500 font-sans font-light">:</span> {combo.rearSize}
+                      </h3>
+                      <p className="mt-1 text-xs text-neutral-400">
+                        {combo.subtitle}
+                      </p>
                     </div>
+                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950 p-1">
+                      <img
+                        src={pairStockPhoto}
+                        alt={`${combo.title} matched tyre set in warehouse`}
+                        className="h-full w-full object-cover rounded"
+                      />
+                    </div>
+                  </div>
 
-                    <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-3">
-                      <span className="text-[10px] uppercase tracking-wider font-bold text-neutral-400 block">
-                        Rear Tyre
-                      </span>
-                      <strong className="font-bold text-white text-xs sm:text-sm mt-0.5 block">
-                        {combo.rearSize}
-                      </strong>
-                      <span className="text-[10px] text-amber-400 font-semibold block mt-0.5">Centauro ST</span>
+                  {/* Front & Rear Breakdown - Clear Package Equation */}
+                  <div className="mt-5 rounded-xl border border-neutral-800 bg-neutral-950/70 p-3">
+                    <span className="text-[10px] uppercase tracking-wider font-semibold text-neutral-400 block mb-2">
+                      Matched Pair Components
+                    </span>
+                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs">
+                      <div className="rounded-lg bg-neutral-900 border border-neutral-800 p-2.5">
+                        <span className="text-[10px] uppercase font-semibold text-neutral-400 block">
+                          Front Tyre
+                        </span>
+                        <strong className="font-display text-xs sm:text-sm font-bold text-white block mt-0.5">
+                          {combo.frontSize}
+                        </strong>
+                        <span className="text-[10px] text-steel font-medium block">Centauro ST</span>
+                      </div>
+
+                      <div className="text-neutral-500 font-bold text-base px-1 text-center">+</div>
+
+                      <div className="rounded-lg bg-neutral-900 border border-neutral-800 p-2.5">
+                        <span className="text-[10px] uppercase font-semibold text-neutral-400 block">
+                          Rear Tyre
+                        </span>
+                        <strong className="font-display text-xs sm:text-sm font-bold text-white block mt-0.5">
+                          {combo.rearSize}
+                        </strong>
+                        <span className="text-[10px] text-steel font-medium block">Centauro ST</span>
+                      </div>
                     </div>
                   </div>
 
@@ -117,8 +140,8 @@ export function CombosSection({ combos, onAddCombo }: CombosSectionProps) {
                 <div className="mt-6 pt-5 border-t border-neutral-800">
                   <div className="flex items-baseline justify-between gap-2 mb-4">
                     <div>
-                      <span className="text-xs text-neutral-400 block">Special Combo Price</span>
-                      <span className="font-display text-2xl sm:text-3xl font-black text-white">
+                      <span className="text-[11px] font-medium text-neutral-400 block">Complete Combo Price</span>
+                      <span className="font-display text-2xl sm:text-3xl font-bold text-white">
                         R{combo.price.toLocaleString("en-ZA")}.00
                       </span>
                     </div>
@@ -126,7 +149,7 @@ export function CombosSection({ combos, onAddCombo }: CombosSectionProps) {
                       <span className="text-xs text-neutral-500 line-through block">
                         R{combo.regularPrice.toLocaleString("en-ZA")}.00
                       </span>
-                      <span className="inline-block rounded-md bg-emerald-500/20 border border-emerald-500/40 px-2 py-0.5 text-xs font-black text-emerald-400 uppercase">
+                      <span className="inline-block rounded-md bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-xs font-bold text-emerald-400">
                         Save R{combo.savings.toLocaleString("en-ZA")}
                       </span>
                     </div>

@@ -7,6 +7,7 @@ import tyre2Asset from "../assets/tyre2.jpg";
 import superbikeAsset from "../assets/01ecd86a0585bbcc8e8bb93c9de047f7.jpg";
 import tyreMacroAsset from "../assets/0203d32f4212b2e0b2a9df4b0f0db2f3.jpg";
 import riderTrackAsset from "../assets/a2e33fb2f4a33ac97cd10c97f2d215ed.jpg";
+import { resolveAsset } from "../lib/assetHelper";
 
 interface HeroProps {
   onScrollTo: (id: string) => void;
@@ -14,7 +15,7 @@ interface HeroProps {
 
 const heroMediaItems = [
   {
-    src: riderTrackAsset,
+    src: resolveAsset(["cf1351f6", "cf13", "cornering"], riderTrackAsset),
     alt: "Superbike knee-down track cornering on Vredestein Centauro tyres",
     label: "Cornering Grip",
     badge: "Track Attack",
@@ -30,15 +31,15 @@ const heroMediaItems = [
     caption: "R&C Commodities · Direct Vredestein Motorcycle Tyre Distributor (Selby, JHB)",
   },
   {
-    src: tyre2Asset,
-    alt: "Vredestein Centauro ST motorcycle tyre profile",
-    label: "Centauro Tyre",
+    src: resolveAsset(["IMG_4936", "IMG4936", "4936", "warehouse"], tyre2Asset),
+    alt: "Vredestein Centauro motorcycle tyre stock pair",
+    label: "Centauro Tyre Stock",
     badge: "Official Stock",
     aspect: "object-contain p-4 sm:p-6",
-    caption: "Centauro Sport Touring & Super Sport Profile",
+    caption: "Centauro Sport Touring & Super Sport Profile Stock in Selby",
   },
   {
-    src: tyreMacroAsset,
+    src: resolveAsset(["IMG_4940", "IMG4940", "4940"], tyreMacroAsset),
     alt: "Macro close-up of Vredestein Centauro tread sipes and silica compound",
     label: "Tread Siping",
     badge: "Dutch R&D",
@@ -46,7 +47,7 @@ const heroMediaItems = [
     caption: "Full-Silica Polymer Matrix & Water Evacuation Sipes",
   },
   {
-    src: superbikeAsset,
+    src: resolveAsset(["4441b341", "4441", "ducati", "superbike"], superbikeAsset),
     alt: "High-performance superbike fitted with Centauro tyres ready for the road",
     label: "Superbike Stance",
     badge: "Ready to Fit",
@@ -87,21 +88,21 @@ export function Hero({ onScrollTo }: HeroProps) {
 
             {/* Quick Action CTA buttons */}
             <div className="mt-8 flex flex-wrap items-center gap-3.5">
-              <ShopButton onClick={() => onScrollTo("tyres")}>
-                Browse Tyres <ArrowRight size={17} />
+              <ShopButton onClick={() => onScrollTo("finder")}>
+                Find Your Tyre <ArrowRight size={17} />
+              </ShopButton>
+
+              <ShopButton variant="outline" onClick={() => onScrollTo("tyres")}>
+                Shop Tyres
               </ShopButton>
 
               <button
                 onClick={() => onScrollTo("combos")}
-                className="inline-flex items-center gap-2 rounded-md bg-amber-400 px-5 py-3 text-xs font-black uppercase tracking-wider text-neutral-950 hover:bg-amber-300 transition-all shadow-md active:scale-95"
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold tracking-wider text-foreground-muted hover:text-foreground transition-colors"
               >
-                <Flame size={16} className="text-neutral-950" />
-                <span>Tyre Combos (Save R650)</span>
+                <span>Matched Combos (Save up to R650)</span>
+                <ArrowRight size={13} />
               </button>
-
-              <ShopButton variant="outline" onClick={() => onScrollTo("finder")}>
-                Find Tyre Size
-              </ShopButton>
             </div>
 
             {/* Range Quick Badges Matrix */}
