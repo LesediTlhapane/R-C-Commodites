@@ -1,4 +1,6 @@
 import { Search, RotateCcw } from "lucide-react";
+import moodyBikeAsset from "../assets/4298f1d6724ee05cbb8ca427a0471e9c.jpg";
+import { resolveAsset } from "../lib/assetHelper";
 
 interface TyreFinderProps {
   finderPosition: string;
@@ -21,9 +23,24 @@ export function TyreFinder({
   onApply,
   onReset,
 }: TyreFinderProps) {
+  const finderBgPhoto = resolveAsset(["13cc2253", "4298f1d6", "swingarm", "moody"], moodyBikeAsset);
+
   return (
-    <section id="finder" className="bg-neutral-950 text-white py-10 shadow-2xl border-y border-neutral-800">
-      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
+    <section id="finder" className="relative overflow-hidden bg-neutral-950 text-white py-12 sm:py-16 shadow-2xl border-y border-neutral-800">
+      {/* Full background picture with tuned opacity for optimal readability and black theme */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <img
+          src={finderBgPhoto}
+          alt=""
+          aria-hidden="true"
+          className="h-full w-full object-cover object-center opacity-60 filter contrast-105"
+        />
+        {/* Balanced dark overlay ensuring the form fields and text are sharp and effortlessly readable */}
+        <div className="absolute inset-0 bg-neutral-950/60" />
+        <div className="absolute inset-0 bg-gradient-to-r from-neutral-950/95 via-neutral-950/70 to-neutral-950/85" />
+      </div>
+
+      <div className="relative z-10 mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
         <div className="grid gap-6 lg:grid-cols-[1fr_2.5fr] lg:items-end">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-900 px-3 py-1 text-xs font-semibold text-neutral-300">

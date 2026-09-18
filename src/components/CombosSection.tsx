@@ -1,7 +1,6 @@
 import { Flame, Tag, ShoppingBag, Phone, ShieldCheck, Check } from "lucide-react";
 import type { TyreCombo } from "../types";
-import riderTrackAsset from "../assets/a2e33fb2f4a33ac97cd10c97f2d215ed.jpg";
-import detailAsset from "../assets/Centauro_detail.jpeg";
+import tyre2Asset from "../assets/tyre2.jpg";
 import { resolveAsset } from "../lib/assetHelper";
 
 interface CombosSectionProps {
@@ -10,21 +9,27 @@ interface CombosSectionProps {
 }
 
 export function CombosSection({ combos, onAddCombo }: CombosSectionProps) {
-  const comboBackdrop = resolveAsset(["IMG_4936", "IMG4936", "4936", "warehouse"], riderTrackAsset);
-  const pairStockPhoto = resolveAsset(["IMG_4936", "IMG4936", "4936"], detailAsset);
+  const comboBackdrop = resolveAsset(["tyre2", "tyre_2"], tyre2Asset);
+  const pairStockPhoto = resolveAsset(["tyre2", "tyre_2", "13cc2253"], tyre2Asset);
 
   return (
     <section id="combos" className="relative overflow-hidden border-b border-neutral-800 bg-neutral-950 text-white py-16 sm:py-24">
-      {/* Background graphic styling */}
-      <div className="absolute inset-0 opacity-10 pointer-events-none bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:24px_24px]" />
-      <img
-        src={comboBackdrop}
-        alt=""
-        aria-hidden="true"
-        className="absolute -right-20 -top-10 h-[700px] w-auto object-cover opacity-20 pointer-events-none filter blur-[0.5px] mix-blend-screen hidden lg:block"
-      />
+      {/* Background picture: tyre2.jpg aligned to the right with higher opacity */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <img
+          src={comboBackdrop}
+          alt=""
+          aria-hidden="true"
+          className="h-full w-full object-cover object-right opacity-75 filter contrast-105"
+        />
+        {/* Dark overlays ensuring black theme and crisp legibility while letting the right-aligned tyre stand out */}
+        <div className="absolute inset-0 bg-neutral-950/40" />
+        <div className="absolute inset-0 bg-gradient-to-r from-neutral-950 via-neutral-950/70 to-neutral-950/20" />
+        <div className="absolute inset-0 bg-gradient-to-b from-neutral-950/90 via-transparent to-neutral-950/95" />
+        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:24px_24px]" />
+      </div>
 
-      <div className="relative mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
+      <div className="relative z-10 mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
         {/* Header strip */}
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 pb-10 border-b border-neutral-800">
           <div>

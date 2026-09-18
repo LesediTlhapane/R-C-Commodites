@@ -1,10 +1,26 @@
 import { Phone, Mail, MapPin, Clock3, Sparkles } from "lucide-react";
 import logoAsset from "../assets/rc-logo.png";
+import superbikeAsset from "../assets/4441b341551467148ef7784290a470fd.jpg";
+import { resolveAsset } from "../lib/assetHelper";
 
 export function Footer() {
+  const footerBgPhoto = resolveAsset(["4441b341", "4441", "paddock", "superbike"], superbikeAsset);
+
   return (
-    <footer className="border-t border-neutral-800 bg-neutral-950 text-white">
-      <div className="mx-auto max-w-[1400px] px-4 py-14 sm:px-6 lg:px-8">
+    <footer className="relative overflow-hidden border-t border-neutral-800 bg-neutral-950 text-white">
+      {/* Full background picture with tuned opacity, maintaining the black colour theme */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <img
+          src={footerBgPhoto}
+          alt=""
+          aria-hidden="true"
+          className="h-full w-full object-cover object-bottom opacity-55 filter contrast-105"
+        />
+        <div className="absolute inset-0 bg-neutral-950/65" />
+        <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/98 via-neutral-950/65 to-neutral-950/85" />
+      </div>
+
+      <div className="relative z-10 mx-auto max-w-[1400px] px-4 py-14 sm:px-6 lg:px-8">
         <div className="grid gap-10 lg:grid-cols-[1.2fr_2fr]">
           {/* Brand Col */}
           <div>

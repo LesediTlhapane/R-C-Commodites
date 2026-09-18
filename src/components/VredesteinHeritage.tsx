@@ -68,9 +68,10 @@ export function VredesteinHeritage({ onScrollToCombos, onScrollToTyres }: Vredes
                 src={moodyBikeAsset}
                 alt=""
                 aria-hidden="true"
-                className="absolute inset-0 h-full w-full object-cover opacity-35 pointer-events-none mix-blend-luminosity filter contrast-125"
+                className="absolute inset-0 h-full w-full object-cover opacity-50 pointer-events-none filter contrast-110"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/85 to-neutral-950/65 pointer-events-none" />
+              <div className="absolute inset-0 bg-neutral-950/60 pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/98 via-neutral-950/80 to-neutral-950/50 pointer-events-none" />
               <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
 
               <div className="relative z-10">

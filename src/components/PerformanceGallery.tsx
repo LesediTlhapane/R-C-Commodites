@@ -16,10 +16,23 @@ export function PerformanceGallery({ onScrollToTyres }: PerformanceGalleryProps)
   const card4Img = resolveAsset(["13cc2253", "13cc", "swingarm", "chain"], moodyBikeAsset);
   const card5Img = resolveAsset(["e086514c", "e086", "exhaust"], riderTrackAsset);
   const card6Img = resolveAsset(["IMG_4939", "IMG4939", "4939", "tarmac"], superbikeAsset);
+  const galleryBgPhoto = resolveAsset(["cf1351f6", "e086514c", "track"], superbikeAsset);
 
   return (
-    <section className="border-b border-border bg-neutral-900 text-white py-14 sm:py-20 relative overflow-hidden">
-      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
+    <section className="border-b border-border bg-neutral-950 text-white py-14 sm:py-20 relative overflow-hidden">
+      {/* Full background picture with tuned opacity, maintaining the black colour theme */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <img
+          src={galleryBgPhoto}
+          alt=""
+          aria-hidden="true"
+          className="h-full w-full object-cover object-center opacity-55 filter contrast-105"
+        />
+        <div className="absolute inset-0 bg-neutral-950/60" />
+        <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/90 via-neutral-950/50 to-neutral-950/85" />
+      </div>
+
+      <div className="relative z-10 mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-amber-300">
