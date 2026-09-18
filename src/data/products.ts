@@ -1,6 +1,9 @@
 import nsAsset from "../assets/NS.png";
 import stAsset from "../assets/ST.jpeg";
 import detailAsset from "../assets/Centauro_detail.jpeg";
+import st19050Asset from "../assets/190 50 ZR 17 ST.PNG";
+import ns19055Asset from "../assets/190 55 ZR 17 NS .PNG";
+import ns20055Asset from "../assets/200 55 ZR 17 NS.PNG";
 import type { TyreProduct, TyreCombo, AccessoryItem } from "../types";
 
 export const vredesteinHeritage = {
@@ -109,7 +112,7 @@ export const tyreProducts: TyreProduct[] = [
     profile: "50",
     rim: "17 inch",
     price: 2300,
-    image: stAsset,
+    image: st19050Asset,
     features: ["Stable highway tracking", "Fast water dispersion", "High thermal endurance"],
   },
   {
@@ -163,7 +166,7 @@ export const tyreProducts: TyreProduct[] = [
     profile: "55",
     rim: "17 inch",
     price: 2450,
-    image: nsAsset,
+    image: ns19055Asset,
     features: ["Tall race profile for agile flickability", "Optimized contact patch at full lean", "High heat dissipation"],
   },
   {
@@ -176,7 +179,7 @@ export const tyreProducts: TyreProduct[] = [
     profile: "55",
     rim: "17 inch",
     price: 3100,
-    image: nsAsset,
+    image: ns20055Asset,
     features: ["Wide superbike contact patch", "Max power transfer on 1000cc+ bikes", "Ultimate trackday traction"],
   },
 ];
