@@ -29,7 +29,7 @@ export function CombosSection({ combos, onAddCombo }: CombosSectionProps) {
           src={comboBackdrop}
           alt=""
           aria-hidden="true"
-          className="h-full w-full object-cover object-right opacity-75 filter contrast-105"
+          className="h-full w-full object-cover object-right opacity-95 filter contrast-105"
         />
         {/* Dark overlays ensuring black theme and crisp legibility while letting the right-aligned tyre stand out */}
         <div className="absolute inset-0 bg-neutral-950/40" />

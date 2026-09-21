@@ -26,7 +26,7 @@ export function PerformanceGallery({ onScrollToTyres }: PerformanceGalleryProps)
           src={galleryBgPhoto}
           alt=""
           aria-hidden="true"
-          className="h-full w-full object-cover object-center opacity-55 filter contrast-105"
+          className="h-full w-full object-cover object-center opacity-90 filter contrast-105"
         />
         <div className="absolute inset-0 bg-neutral-950/60" />
         <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/90 via-neutral-950/50 to-neutral-950/85" />
