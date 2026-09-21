@@ -1,7 +1,9 @@
 import { ArrowRight, ShieldCheck, Zap, Compass } from "lucide-react";
+import { motion } from "motion/react";
 import type { Range } from "../types";
 import nsAsset from "../assets/NS.png";
 import stAsset from "../assets/ST.jpeg";
+import { PERFORMANCE_EASE, TACTILE_EASE } from "../lib/motionTokens";
 
 interface FeaturedRangesProps {
   onSelectRange: (range: Range) => void;
@@ -15,8 +17,14 @@ export function FeaturedRanges({ onSelectRange, onScrollToTyres }: FeaturedRange
   };
 
   return (
-    <section className="mx-auto max-w-[1400px] px-4 py-12 sm:px-6 lg:px-8">
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 pb-6 border-b border-border">
+    <section className="mx-auto max-w-[1400px] px-4 py-12 sm:px-6 lg:px-8 overflow-hidden">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.3 }}
+        transition={{ duration: 0.6, ease: PERFORMANCE_EASE }}
+        className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 pb-6 border-b border-border"
+      >
         <div>
           <span className="text-xs font-bold uppercase tracking-[0.2em] text-primary block">
             Vredestein Motorcycle Portfolio
@@ -25,18 +33,27 @@ export function FeaturedRanges({ onSelectRange, onScrollToTyres }: FeaturedRange
             Two distinct disciplines. One Dutch pedigree.
           </h2>
         </div>
-        <button
+        <motion.button
+          whileHover={{ x: 3, transition: { duration: 0.15, ease: TACTILE_EASE } }}
+          whileTap={{ scale: 0.98 }}
           onClick={() => handleRangeClick("All")}
-          className="text-xs font-bold uppercase tracking-wider text-primary hover:underline self-start sm:self-auto inline-flex items-center gap-1.5"
+          className="text-xs font-bold uppercase tracking-wider text-primary hover:underline self-start sm:self-auto inline-flex items-center gap-1.5 cursor-pointer"
         >
           <span>View All 8 Fitments</span>
           <ArrowRight size={14} />
-        </button>
-      </div>
+        </motion.button>
+      </motion.div>
 
       <div className="mt-8 grid gap-6 md:grid-cols-2">
         {/* Centauro NS Card */}
-        <div className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-border bg-card p-6 sm:p-8 transition-all hover:border-primary hover:shadow-lg">
+        <motion.div
+          initial={{ opacity: 0, x: -24 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true, amount: 0.2 }}
+          transition={{ duration: 0.7, ease: PERFORMANCE_EASE }}
+          whileHover={{ y: -4, transition: { duration: 0.2, ease: PERFORMANCE_EASE } }}
+          className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-border bg-card p-6 sm:p-8 transition-colors hover:border-primary hover:shadow-xl"
+        >
           <div>
             <div className="flex items-center justify-between gap-3">
               <span className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 border border-primary/20 px-3 py-1 text-xs font-bold uppercase tracking-wider text-primary">
@@ -76,11 +93,11 @@ export function FeaturedRanges({ onSelectRange, onScrollToTyres }: FeaturedRange
               </div>
 
               <div className="sm:col-span-5 flex justify-center">
-                <div className="h-44 w-44 rounded-xl bg-surface-soft p-3 flex items-center justify-center">
+                <div className="h-44 w-44 rounded-xl bg-surface-soft p-3 flex items-center justify-center overflow-hidden">
                   <img
                     src={nsAsset}
                     alt="Vredestein Centauro NS Super Sport Tyre"
-                    className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
+                    className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-108"
                   />
                 </div>
               </div>
@@ -89,18 +106,27 @@ export function FeaturedRanges({ onSelectRange, onScrollToTyres }: FeaturedRange
 
           <div className="mt-6 pt-5 border-t border-border flex items-center justify-between">
             <span className="text-xs text-foreground-muted font-medium">4 Superbike Sizes In Stock</span>
-            <button
+            <motion.button
+              whileHover={{ scale: 1.03, transition: { duration: 0.15, ease: PERFORMANCE_EASE } }}
+              whileTap={{ scale: 0.97 }}
               onClick={() => handleRangeClick("NS")}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-primary-hover transition-colors shadow-xs"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-primary-hover transition-colors shadow-xs cursor-pointer"
             >
               <span>Shop Centauro NS</span>
               <ArrowRight size={14} />
-            </button>
+            </motion.button>
           </div>
-        </div>
+        </motion.div>
 
         {/* Centauro ST Card */}
-        <div className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-border bg-card p-6 sm:p-8 transition-all hover:border-steel hover:shadow-lg">
+        <motion.div
+          initial={{ opacity: 0, x: 24 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true, amount: 0.2 }}
+          transition={{ duration: 0.7, ease: PERFORMANCE_EASE }}
+          whileHover={{ y: -4, transition: { duration: 0.2, ease: PERFORMANCE_EASE } }}
+          className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-border bg-card p-6 sm:p-8 transition-colors hover:border-steel hover:shadow-xl"
+        >
           <div>
             <div className="flex items-center justify-between gap-3">
               <span className="inline-flex items-center gap-1.5 rounded-md bg-steel/10 border border-steel/20 px-3 py-1 text-xs font-bold uppercase tracking-wider text-steel">
@@ -140,11 +166,11 @@ export function FeaturedRanges({ onSelectRange, onScrollToTyres }: FeaturedRange
               </div>
 
               <div className="sm:col-span-5 flex justify-center">
-                <div className="h-44 w-44 rounded-xl bg-surface-soft p-3 flex items-center justify-center">
+                <div className="h-44 w-44 rounded-xl bg-surface-soft p-3 flex items-center justify-center overflow-hidden">
                   <img
                     src={stAsset}
                     alt="Vredestein Centauro ST Sport Touring Tyre"
-                    className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
+                    className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-108"
                   />
                 </div>
               </div>
@@ -153,16 +179,19 @@ export function FeaturedRanges({ onSelectRange, onScrollToTyres }: FeaturedRange
 
           <div className="mt-6 pt-5 border-t border-border flex items-center justify-between">
             <span className="text-xs text-foreground-muted font-medium">4 Touring Sizes In Stock</span>
-            <button
+            <motion.button
+              whileHover={{ scale: 1.03, transition: { duration: 0.15, ease: PERFORMANCE_EASE } }}
+              whileTap={{ scale: 0.97 }}
               onClick={() => handleRangeClick("ST")}
-              className="inline-flex items-center gap-2 rounded-lg bg-foreground px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-background hover:opacity-90 transition-opacity shadow-xs"
+              className="inline-flex items-center gap-2 rounded-lg bg-foreground px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-background hover:opacity-90 transition-opacity shadow-xs cursor-pointer"
             >
               <span>Shop Centauro ST</span>
               <ArrowRight size={14} />
-            </button>
+            </motion.button>
           </div>
-        </div>
+        </motion.div>
       </div>
     </section>
   );
 }
+

@@ -1,6 +1,8 @@
 import { Tag, ShoppingBag, ShieldCheck, Phone, Check } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 import type { Range, TyreProduct } from "../types";
 import { ShopButton } from "./ShopButton";
+import { PERFORMANCE_EASE, TACTILE_EASE } from "../lib/motionTokens";
 
 interface TyresCatalogProps {
   range: Range;
@@ -48,7 +50,8 @@ export function TyresCatalog({
 
             {/* Range Toggle Cards */}
             <div className="rounded-xl border border-border bg-card p-1.5 shadow-sm space-y-1">
-              <button
+              <motion.button
+                whileTap={{ scale: 0.98 }}
                 onClick={() => {
                   onSelectRange("NS");
                   onSelectSize("All sizes");
@@ -68,9 +71,10 @@ export function TyresCatalog({
                     Track &amp; aggressive road grip, fast steering turn-in, and supreme confidence at maximum lean angle.
                   </p>
                 </div>
-              </button>
+              </motion.button>
 
-              <button
+              <motion.button
+                whileTap={{ scale: 0.98 }}
                 onClick={() => {
                   onSelectRange("ST");
                   onSelectSize("All sizes");
@@ -90,9 +94,10 @@ export function TyresCatalog({
                     Exceptional wet drainage siping, extended tread life, and all-weather touring comfort.
                   </p>
                 </div>
-              </button>
+              </motion.button>
 
-              <button
+              <motion.button
+                whileTap={{ scale: 0.98 }}
                 onClick={() => {
                   onSelectRange("All");
                   onSelectSize("All sizes");
@@ -103,7 +108,7 @@ export function TyresCatalog({
                 }`}
               >
                 <span>View all fitments ({filteredProducts.length}) →</span>
-              </button>
+              </motion.button>
             </div>
 
             {/* Official Selling Price Matrix */}
@@ -316,10 +321,14 @@ export function TyresCatalog({
           ) : (
             /* Cards Grid View */
             <div className="grid gap-5 sm:grid-cols-2">
-              {filteredProducts.map((product) => (
-                <article
+              {filteredProducts.map((product, idx) => (
+                <motion.article
                   key={product.id}
-                  className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-border bg-card shadow-xs transition-all hover:-translate-y-1 hover:shadow-xl hover:border-neutral-400"
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35, delay: Math.min(idx * 0.04, 0.3), ease: PERFORMANCE_EASE }}
+                  whileHover={{ y: -4, transition: { duration: 0.2, ease: PERFORMANCE_EASE } }}
+                  className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-border bg-card shadow-xs transition-colors hover:shadow-xl hover:border-neutral-400"
                 >
                   <div>
                     {/* Tyre Image Showcase */}
@@ -389,7 +398,7 @@ export function TyresCatalog({
                       Add to cart <ShoppingBag size={15} />
                     </ShopButton>
                   </div>
-                </article>
+                </motion.article>
               ))}
             </div>
           )}

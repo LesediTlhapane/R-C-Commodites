@@ -1,7 +1,9 @@
 import { Flame, Tag, ShoppingBag, Phone, ShieldCheck, Check } from "lucide-react";
+import { motion } from "motion/react";
 import type { TyreCombo } from "../types";
 import tyre2Asset from "../assets/tyre2.jpg";
 import { resolveAsset } from "../lib/assetHelper";
+import { PERFORMANCE_EASE, TACTILE_EASE } from "../lib/motionTokens";
 
 interface CombosSectionProps {
   combos: TyreCombo[];
@@ -13,7 +15,14 @@ export function CombosSection({ combos, onAddCombo }: CombosSectionProps) {
   const pairStockPhoto = resolveAsset(["tyre2", "tyre_2", "13cc2253"], tyre2Asset);
 
   return (
-    <section id="combos" className="relative overflow-hidden border-b border-neutral-800 bg-neutral-950 text-white py-16 sm:py-24">
+    <motion.section
+      id="combos"
+      initial={{ opacity: 0 }}
+      whileInView={{ opacity: 1 }}
+      viewport={{ once: true, amount: 0.15 }}
+      transition={{ duration: 0.7, ease: PERFORMANCE_EASE }}
+      className="relative overflow-hidden border-b border-neutral-800 bg-neutral-950 text-white py-16 sm:py-24"
+    >
       {/* Background picture: tyre2.jpg aligned to the right with higher opacity */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <img
@@ -31,7 +40,13 @@ export function CombosSection({ combos, onAddCombo }: CombosSectionProps) {
 
       <div className="relative z-10 mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
         {/* Header strip */}
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 pb-10 border-b border-neutral-800">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, ease: PERFORMANCE_EASE }}
+          className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 pb-10 border-b border-neutral-800"
+        >
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3.5 py-1 text-xs font-bold uppercase tracking-[0.18em] text-amber-300">
               <Flame size={14} className="text-amber-400" />
@@ -46,28 +61,35 @@ export function CombosSection({ combos, onAddCombo }: CombosSectionProps) {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <a
+            <motion.a
+              whileHover={{ scale: 1.03, transition: { duration: 0.15, ease: PERFORMANCE_EASE } }}
+              whileTap={{ scale: 0.97 }}
               href="https://wa.me/27832273237?text=Hi%20Costa,%20I'm%20interested%20in%20the%20Vredestein%20Centauro%20Tyre%20Combos"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-md bg-neutral-900 border border-neutral-700 px-4 py-3 text-xs font-bold uppercase tracking-wider text-neutral-200 hover:border-amber-400 hover:text-white transition-colors"
+              className="inline-flex items-center gap-2 rounded-md bg-neutral-900 border border-neutral-700 px-4 py-3 text-xs font-bold uppercase tracking-wider text-neutral-200 hover:border-amber-400 hover:text-white transition-colors cursor-pointer"
             >
               <Phone size={14} className="text-amber-400" /> WhatsApp Costa
-            </a>
+            </motion.a>
           </div>
-        </div>
+        </motion.div>
 
         {/* Combo Cards 3-Column Grid */}
         <div className="mt-10 grid gap-6 md:grid-cols-3">
-          {combos.map((combo) => {
+          {combos.map((combo, idx) => {
             const waMessage = encodeURIComponent(
               `Hi Costa (R&C Commodities), I would like to order the Vredestein Centauro Combo:\n\n• ${combo.frontSize} + ${combo.rearSize}\n• Combo Price: R${combo.price.toLocaleString("en-ZA")}.00 (Save R${combo.savings.toLocaleString("en-ZA")})\n\nPlease confirm availability and fitment/delivery.`
             );
 
             return (
-              <div
+              <motion.div
                 key={combo.id}
-                className="relative flex flex-col justify-between rounded-2xl border border-neutral-800 bg-neutral-900/95 p-6 sm:p-7 shadow-2xl transition-all duration-300 hover:border-amber-400 hover:-translate-y-1 group"
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.2 }}
+                transition={{ duration: 0.6, delay: idx * 0.1, ease: PERFORMANCE_EASE }}
+                whileHover={{ y: -6, transition: { duration: 0.2, ease: PERFORMANCE_EASE } }}
+                className="relative flex flex-col justify-between rounded-2xl border border-neutral-800 bg-neutral-900/95 p-6 sm:p-7 shadow-2xl transition-colors hover:border-amber-400 group"
               >
                 {/* Top badges */}
                 <div>
@@ -161,29 +183,39 @@ export function CombosSection({ combos, onAddCombo }: CombosSectionProps) {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <button
+                    <motion.button
+                      whileHover={{ scale: 1.03, transition: { duration: 0.15, ease: PERFORMANCE_EASE } }}
+                      whileTap={{ scale: 0.96, transition: { duration: 0.1, ease: TACTILE_EASE } }}
                       onClick={() => onAddCombo(combo)}
-                      className="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 text-xs font-black uppercase tracking-wider text-white hover:bg-primary-hover transition-all shadow-md active:scale-95"
+                      className="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 text-xs font-black uppercase tracking-wider text-white hover:bg-primary-hover transition-all shadow-md cursor-pointer"
                     >
                       <ShoppingBag size={15} /> Add Combo Set
-                    </button>
-                    <a
+                    </motion.button>
+                    <motion.a
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.97 }}
                       href={`https://wa.me/27832273237?text=${waMessage}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 rounded-md border border-neutral-700 bg-neutral-800 px-3 py-3 text-xs font-bold uppercase tracking-wider text-white hover:bg-neutral-700 transition-colors"
+                      className="flex items-center justify-center gap-2 rounded-md border border-neutral-700 bg-neutral-800 px-3 py-3 text-xs font-bold uppercase tracking-wider text-white hover:bg-neutral-700 transition-colors cursor-pointer"
                     >
                       <Phone size={14} className="text-emerald-400" /> WhatsApp
-                    </a>
+                    </motion.a>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>
 
         {/* Bottom guarantee strip */}
-        <div className="mt-10 rounded-xl border border-neutral-800 bg-neutral-900/60 p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-neutral-400">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, ease: PERFORMANCE_EASE }}
+          className="mt-10 rounded-xl border border-neutral-800 bg-neutral-900/60 p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-neutral-400"
+        >
           <div className="flex items-center gap-3">
             <ShieldCheck size={22} className="text-amber-400 shrink-0" />
             <span>
@@ -196,8 +228,8 @@ export function CombosSection({ combos, onAddCombo }: CombosSectionProps) {
           >
             <Phone size={14} /> Selby Fitment Advice: +27 83 227 3237
           </a>
-        </div>
+        </motion.div>
       </div>
-    </section>
+    </motion.section>
   );
 }
