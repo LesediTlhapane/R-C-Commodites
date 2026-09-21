@@ -2,6 +2,7 @@ import { Award, Clock3, Layers, Sparkles, ArrowRight, Phone } from "lucide-react
 import { ShopButton } from "./ShopButton";
 import { vredesteinHeritage } from "../data/products";
 import moodyBikeAsset from "../assets/4298f1d6724ee05cbb8ca427a0471e9c.jpg";
+import vredesteinLogoAsset from "../assets/vredestein-logo.png";
 
 interface VredesteinHeritageProps {
   onScrollToCombos: () => void;
@@ -15,9 +16,18 @@ export function VredesteinHeritage({ onScrollToCombos, onScrollToTyres }: Vredes
         <div className="grid gap-12 lg:grid-cols-12 items-center">
           {/* Left Narrative */}
           <div className="lg:col-span-6 space-y-6">
-            <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3.5 py-1.5 text-xs font-black uppercase tracking-[0.2em] text-primary">
-              <Award size={15} />
-              {vredesteinHeritage.headline} · {vredesteinHeritage.tagline}
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="rounded-xl border border-neutral-800 bg-neutral-950 px-3.5 py-2 shadow-sm inline-flex items-center">
+                <img
+                  src={vredesteinLogoAsset}
+                  alt="Vredestein Official Logo"
+                  className="h-8 sm:h-10 w-auto object-contain brightness-110"
+                />
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3.5 py-1.5 text-xs font-black uppercase tracking-[0.2em] text-primary">
+                <Award size={15} />
+                {vredesteinHeritage.headline} · {vredesteinHeritage.tagline}
+              </div>
             </div>
 
             <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl uppercase tracking-tight text-foreground leading-[1.05]">
@@ -75,9 +85,16 @@ export function VredesteinHeritage({ onScrollToCombos, onScrollToTyres }: Vredes
               <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
 
               <div className="relative z-10">
-                <span className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-400 block mb-2">
-                  CENTAURO SPORT TOURING &amp; SUPER SPORT
-                </span>
+                <div className="flex items-center justify-between gap-4 mb-2">
+                  <span className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-400 block">
+                    CENTAURO SPORT TOURING &amp; SUPER SPORT
+                  </span>
+                  <img
+                    src={vredesteinLogoAsset}
+                    alt="Vredestein"
+                    className="h-6 w-auto object-contain brightness-125 opacity-90"
+                  />
+                </div>
                 <h3 className="font-display text-2xl sm:text-3xl uppercase tracking-tight text-white mb-4">
                   Built for Modern Superbikes &amp; Tourers
                 </h3>

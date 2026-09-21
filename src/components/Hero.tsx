@@ -5,6 +5,7 @@ import { ShopButton } from "./ShopButton";
 import { PERFORMANCE_EASE, TACTILE_EASE } from "../lib/motionTokens";
 
 import logoAsset from "../assets/rc-logo.png";
+import vredesteinLogoAsset from "../assets/vredestein-logo.png";
 import tyre2Asset from "../assets/tyre2.jpg";
 import superbikeAsset from "../assets/01ecd86a0585bbcc8e8bb93c9de047f7.jpg";
 import tyreMacroAsset from "../assets/0203d32f4212b2e0b2a9df4b0f0db2f3.jpg";
@@ -23,6 +24,14 @@ const heroMediaItems = [
     badge: "Track Attack",
     aspect: "object-cover",
     caption: "Extreme Lean Stability & Dual-Compound Shoulder Grip",
+  },
+  {
+    src: vredesteinLogoAsset,
+    alt: "Vredestein official logo - Dutch European Tyre Engineering Since 1909",
+    label: "Vredestein",
+    badge: "Official Brand",
+    aspect: "object-contain p-8 sm:p-12 bg-neutral-950",
+    caption: "Vredestein · European Premium Motorcycle Tyre Engineering Since 1909",
   },
   {
     src: logoAsset,
@@ -80,10 +89,20 @@ export function Hero({ onScrollTo }: HeroProps) {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.08, ease: PERFORMANCE_EASE }}
-              className="mb-4 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-foreground-muted shadow-xs w-fit"
+              className="mb-4 flex flex-wrap items-center gap-2.5"
             >
-              <span className="size-2 rounded-full bg-primary animate-pulse" />
-              Made in the Netherlands · European Tyre Engineering Since 1909
+              <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-foreground-muted shadow-xs">
+                <span className="size-2 rounded-full bg-primary animate-pulse" />
+                Made in the Netherlands · Since 1909
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-950 px-2.5 py-1 shadow-xs">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-400">Official</span>
+                <img
+                  src={vredesteinLogoAsset}
+                  alt="Vredestein"
+                  className="h-4.5 w-auto object-contain brightness-115"
+                />
+              </div>
             </motion.div>
 
             {/* Stage 2: Headline */}

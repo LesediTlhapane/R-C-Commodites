@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Phone, Mail, MapPin, Clock3, Sparkles, Maximize2, X, ExternalLink, Navigation } from "lucide-react";
 import logoAsset from "../assets/rc-logo.png";
+import vredesteinLogoAsset from "../assets/vredestein-logo.png";
 import superbikeAsset from "../assets/4441b341551467148ef7784290a470fd.jpg";
 import { resolveAsset } from "../lib/assetHelper";
 
@@ -36,11 +37,21 @@ export function Footer() {
         <div className="grid gap-10 lg:grid-cols-[1.2fr_2fr]">
           {/* Brand Col */}
           <div>
-            <img
-              src={logoAsset}
-              alt="R&C Commodities logo"
-              className="h-16 w-auto object-contain"
-            />
+            <div className="flex flex-wrap items-center gap-4">
+              <img
+                src={logoAsset}
+                alt="R&C Commodities logo"
+                className="h-14 w-auto object-contain"
+              />
+              <div className="h-8 w-px bg-neutral-800 hidden sm:block" />
+              <div className="rounded-lg bg-neutral-900/90 border border-neutral-800 px-3 py-1.5 flex items-center">
+                <img
+                  src={vredesteinLogoAsset}
+                  alt="Vredestein Tyres Official Logo"
+                  className="h-8 w-auto object-contain brightness-110"
+                />
+              </div>
+            </div>
             <p className="mt-4 max-w-sm text-sm leading-6 text-neutral-400">
               R&amp;C Commodities — Premier distributor of Vredestein Centauro NS and ST
               superbike motorcycle tyres and motorcycle accessories in Selby, Johannesburg.

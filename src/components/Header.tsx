@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Phone, Search, ShoppingBag, Menu, X, ArrowRight } from "lucide-react";
 import logoAsset from "../assets/rc-logo.png";
+import vredesteinLogoAsset from "../assets/vredestein-logo.png";
 import { tyreProducts, tyreCombos } from "../data/products";
 
 interface HeaderProps {
@@ -121,7 +122,7 @@ export function Header({
       <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
         <div className="flex h-20 sm:h-22 items-center justify-between gap-4">
           {/* Brand Logo on Left */}
-          <div className="flex items-center gap-3.5">
+          <div className="flex items-center gap-3 sm:gap-3.5">
             <button
               aria-label="Go to top of page"
               onClick={() => handleNavClick("top")}
@@ -130,16 +131,29 @@ export function Header({
               <img
                 src={logoAsset}
                 alt="R&C Commodities logo"
-                className="h-13 sm:h-14 w-auto object-contain"
+                className="h-12 sm:h-14 w-auto object-contain"
               />
             </button>
-            <div className="hidden md:block border-l border-neutral-800 pl-3.5">
-              <span className="block font-display text-base uppercase tracking-tight text-white leading-tight">
+            <div className="hidden sm:block border-l border-neutral-800 pl-3 sm:pl-3.5">
+              <span className="block font-display text-sm sm:text-base uppercase tracking-tight text-white leading-tight">
                 <span className="text-primary font-bold">R&amp;C</span> Commodities
               </span>
-              <span className="block text-[11px] uppercase tracking-wider text-neutral-400 font-medium">
+              <span className="block text-[10px] sm:text-[11px] uppercase tracking-wider text-neutral-400 font-medium">
                 Premium Motorcycle Tyres &amp; Accessories
               </span>
+            </div>
+            {/* Vredestein Partner Logo Badge */}
+            <div className="hidden xl:flex items-center pl-3.5 border-l border-neutral-800">
+              <div className="flex items-center gap-2 rounded-lg bg-neutral-900/80 border border-neutral-800 px-2.5 py-1.5">
+                <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-neutral-400 leading-tight">
+                  Official<br />Partner
+                </span>
+                <img
+                  src={vredesteinLogoAsset}
+                  alt="Vredestein Tyres"
+                  className="h-6 w-auto object-contain brightness-110"
+                />
+              </div>
             </div>
           </div>
 
@@ -342,6 +356,18 @@ export function Header({
                 <Phone size={14} className="text-neutral-400" />
                 <span>Call Workshop</span>
               </a>
+            </div>
+
+            {/* Mobile Official Vredestein Lockup */}
+            <div className="pt-3 pb-1 border-t border-neutral-800/80 flex items-center justify-between px-2">
+              <span className="text-[10px] uppercase tracking-wider text-neutral-400 font-medium">
+                Official Vredestein Importer
+              </span>
+              <img
+                src={vredesteinLogoAsset}
+                alt="Vredestein Tyres"
+                className="h-6 w-auto object-contain brightness-110"
+              />
             </div>
           </nav>
         )}
