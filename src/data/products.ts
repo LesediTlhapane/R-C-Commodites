@@ -1,9 +1,8 @@
-import nsAsset from "../assets/NS.png";
-import stAsset from "../assets/ST.jpeg";
 import detailAsset from "../assets/Centauro_detail.jpeg";
 import st19050Asset from "../assets/190 50 ZR 17 ST.PNG";
 import ns19055Asset from "../assets/190 55 ZR 17 NS .PNG";
 import ns20055Asset from "../assets/200 55 ZR 17 NS.PNG";
+import front12070Asset from "../assets/329.jpg";
 import type { TyreProduct, TyreCombo, AccessoryItem } from "../types";
 
 export const vredesteinHeritage = {
@@ -86,7 +85,7 @@ export const tyreProducts: TyreProduct[] = [
     profile: "70",
     rim: "17 inch",
     price: 1350,
-    image: stAsset,
+    image: front12070Asset,
     features: ["Linear progressive turn-in", "Exceptional wet evacuation", "Long-haul comfort & mileage"],
   },
   {
@@ -140,7 +139,7 @@ export const tyreProducts: TyreProduct[] = [
     profile: "70",
     rim: "17 inch",
     price: 1900,
-    image: nsAsset,
+    image: front12070Asset,
     features: ["Zero-degree steel belt", "Track-proven steering precision", "Supreme cornering grip"],
   },
   {
