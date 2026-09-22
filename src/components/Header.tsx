@@ -120,32 +120,33 @@ export function Header({
 
       {/* LAYER 2 — PRIMARY NAVIGATION */}
       <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
-        <div className="flex h-20 sm:h-22 items-center justify-between gap-4">
+        <div className="flex h-20 sm:h-22 lg:h-24 items-center justify-between gap-4">
           {/* Brand Logo on Left */}
           <div className="flex items-center gap-3 sm:gap-3.5">
             <button
               aria-label="Go to top of page"
               onClick={() => handleNavClick("top")}
-              className="shrink-0 transition-opacity hover:opacity-90"
+              className="shrink-0 transition-all hover:opacity-95 hover:scale-[1.02] cursor-pointer"
             >
               <img
                 src={logoAsset}
                 alt="R&C Commodities logo"
-                className="h-12 sm:h-14 w-auto object-contain"
+                className="h-13 sm:h-16 lg:h-18 w-auto object-contain drop-shadow-md transition-all"
               />
             </button>
-            <div className="hidden sm:block border-l border-neutral-800 pl-3 sm:pl-3.5">
-              <span className="block font-display text-sm sm:text-base uppercase tracking-tight text-white leading-tight">
-                <span className="text-primary font-bold">R&amp;C</span> Commodities
+            <div className="hidden sm:flex flex-col justify-center border-l-2 border-neutral-800/90 pl-3.5 sm:pl-4 py-0.5">
+              <span className="block font-display text-sm sm:text-base lg:text-lg uppercase leading-none">
+                <span className="text-primary font-black tracking-wider">R&amp;C</span>{" "}
+                <span className="font-extrabold tracking-[0.15em] text-white">COMMODITIES</span>
               </span>
-              <span className="block text-[10px] sm:text-[11px] uppercase tracking-wider text-neutral-400 font-medium">
-                Premium Motorcycle Tyres &amp; Accessories
+              <span className="block text-[8.5px] sm:text-[9.5px] lg:text-[10px] uppercase tracking-[0.2em] text-neutral-400 font-semibold mt-1 leading-tight">
+                PREMIUM MOTORCYCLE TYRES &amp; ACCESSORIES
               </span>
             </div>
             {/* Vredestein Partner Logo Badge */}
             <div className="hidden xl:flex items-center pl-3.5 border-l border-neutral-800">
               <div className="flex items-center gap-2 rounded-lg bg-neutral-900/80 border border-neutral-800 px-2.5 py-1.5">
-                <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-neutral-400 leading-tight">
+                <span className="text-[8.5px] font-bold uppercase tracking-[0.15em] text-neutral-400 leading-tight">
                   Official<br />Partner
                 </span>
                 <img
@@ -205,7 +206,7 @@ export function Header({
 
               {/* Quick Search Popover */}
               {searchOpen && (
-                <div className="absolute right-0 top-13 z-50 w-80 sm:w-96 rounded-xl border border-neutral-800 bg-neutral-900 p-3 shadow-2xl animate-in fade-in slide-in-from-top-2">
+                <div className="absolute right-0 top-full mt-2.5 z-50 w-80 sm:w-96 rounded-xl border border-neutral-800 bg-neutral-900 p-3 shadow-2xl animate-in fade-in slide-in-from-top-2">
                   <div className="relative">
                     <input
                       ref={searchInputRef}

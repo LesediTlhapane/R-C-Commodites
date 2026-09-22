@@ -17,6 +17,7 @@ import { MobileQuickBar } from "./components/MobileQuickBar";
 import { tyreProducts, tyreCombos, accessoryCategories } from "./data/products";
 import type { CartItem, Range, TyreProduct, TyreCombo, AccessoryItem } from "./types";
 import backgroundAsset from "./assets/background.png";
+import { resolveAsset } from "./lib/assetHelper";
 
 const sizeOptions = [
   "All sizes",
@@ -185,16 +186,18 @@ export default function App() {
     setSelectedPosition("All");
   };
 
+  const pageBgAsset = resolveAsset(["background", "bg"], backgroundAsset);
+
   return (
     <div className="relative isolate min-h-screen text-foreground selection:bg-primary selection:text-white pb-16 md:pb-0">
-      {/* Background layer */}
+      {/* Background layer with controlled opacity */}
       <img
-        src={backgroundAsset}
+        src={pageBgAsset}
         alt=""
         aria-hidden="true"
-        className="pointer-events-none fixed inset-0 -z-20 h-full w-full object-cover opacity-95"
+        className="pointer-events-none fixed inset-0 -z-20 h-full w-full object-cover opacity-85 filter contrast-110"
       />
-      <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 bg-background/70" />
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 bg-background/75" />
 
       {/* Floating Toast Notification */}
       {toastMessage && (
