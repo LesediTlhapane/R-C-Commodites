@@ -18,6 +18,8 @@ import { tyreProducts, tyreCombos, accessoryCategories } from "./data/products";
 import type { CartItem, Range, TyreProduct, TyreCombo, AccessoryItem } from "./types";
 import backgroundAsset from "./assets/background.png";
 import { resolveAsset } from "./lib/assetHelper";
+import { useRouter } from "./lib/router";
+import { AdminRoutes } from "./components/admin/AdminRoutes";
 
 const sizeOptions = [
   "All sizes",
@@ -185,6 +187,13 @@ export default function App() {
     setSelectedSize("All sizes");
     setSelectedPosition("All");
   };
+
+  const { pathname } = useRouter();
+
+  // If path is within the admin space (/admin, /admin/login, /admin/*), render dedicated Admin application
+  if (pathname.startsWith("/admin")) {
+    return <AdminRoutes />;
+  }
 
   const pageBgAsset = resolveAsset(["background", "bg"], backgroundAsset);
 

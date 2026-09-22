@@ -1,6 +1,6 @@
 {
   "name": "R&C Performance Tyres",
-  "description": "Superbike tyres (Vredestein Centauro NS & ST) and motorcycle accessories storefront for R&C Commodities.",
+  "description": "Superbike tyres (Vredestein Centauro NS & ST), motorcycle accessories storefront, and secure admin management portal for R&C Commodities.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

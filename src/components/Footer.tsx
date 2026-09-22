@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { Phone, Mail, MapPin, Clock3, Sparkles, Maximize2, X, ExternalLink, Navigation } from "lucide-react";
+import { Phone, Mail, MapPin, Clock3, Sparkles, Maximize2, X, ExternalLink, Navigation, Lock } from "lucide-react";
 import logoAsset from "../assets/rc-logo.png";
 import vredesteinLogoAsset from "../assets/vredestein-logo.png";
 import superbikeAsset from "../assets/4441b341551467148ef7784290a470fd.jpg";
 import { resolveAsset } from "../lib/assetHelper";
+import { Link } from "../lib/router";
 
 export function Footer() {
   const [isMapOpen, setIsMapOpen] = useState(false);
@@ -144,7 +145,17 @@ export function Footer() {
         </div>
 
         <div className="mt-12 flex flex-col gap-3 border-t border-neutral-800/80 pt-6 text-xs text-neutral-500 sm:flex-row sm:items-center sm:justify-between">
-          <span>© 2026 R&amp;C Commodities. All rights reserved.</span>
+          <div className="flex flex-wrap items-center gap-3">
+            <span>© 2026 R&amp;C Commodities. All rights reserved.</span>
+            <span className="hidden sm:inline text-neutral-700">•</span>
+            <Link
+              href="/admin"
+              className="text-neutral-500 hover:text-neutral-300 transition-colors inline-flex items-center gap-1 font-mono text-[11px]"
+            >
+              <Lock size={11} className="text-neutral-600" />
+              <span>Admin Portal</span>
+            </Link>
+          </div>
           <span>Official South African importer of Vredestein Centauro Super Sport &amp; Sport Touring motorcycle tyres.</span>
         </div>
       </div>
