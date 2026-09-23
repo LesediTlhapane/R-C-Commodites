@@ -188,19 +188,23 @@ export async function createProduct(
         active: productData.active !== false,
       },
     ])
-    .select()
-    .single();
+    .select();
 
   if (error) {
-    throw new Error(`Failed to create product: ${error.message}`);
+    const details = error.details ? ` (${error.details})` : error.hint ? ` (${error.hint})` : "";
+    throw new Error(`Failed to create product: ${error.message}${details}`);
   }
 
-  const newProduct = data as DbProduct;
+  if (!data || data.length === 0) {
+    throw new Error("Failed to create product: No record returned from database.");
+  }
+
+  const newProduct = data[0] as DbProduct;
 
   // Inventory history record for newly created product if initial stock is provided
   if (newProduct.stock_quantity !== null && newProduct.stock_quantity > 0) {
     try {
-      await supabase.from("inventory_history").insert([
+      const { error: invErr } = await supabase.from("inventory_history").insert([
         {
           product_id: newProduct.id,
           change_type: "restock",
@@ -209,6 +213,9 @@ export async function createProduct(
           notes: "Initial stock on product creation",
         },
       ]);
+      if (invErr) {
+        console.warn("[productService] Failed to record initial inventory history:", invErr.message);
+      }
     } catch (invErr) {
       console.warn("[productService] Failed to record initial inventory history:", invErr);
     }
@@ -252,37 +259,60 @@ export async function updateProduct(
   if (updates.image_url !== undefined) payload.image_url = updates.image_url;
   if (updates.active !== undefined) payload.active = Boolean(updates.active);
 
+  // Safely execute update and return modified row without .single() coercion error
   const { data, error } = await supabase
     .from("products")
     .update(payload)
     .eq("id", id)
-    .select()
-    .single();
+    .select();
 
   if (error) {
-    throw new Error(`Failed to update product: ${error.message}`);
+    const details = error.details ? ` (${error.details})` : error.hint ? ` (${error.hint})` : "";
+    throw new Error(`Failed to update product: ${error.message}${details}`);
   }
 
-  const updatedProduct = data as DbProduct;
+  if (!data || data.length === 0) {
+    throw new Error(
+      `Failed to update product: No product was updated. Please check that the product exists and that your administrator account is authorized to modify inventory.`
+    );
+  }
+
+  const updatedProduct = data[0] as DbProduct;
 
   // Check if stock changed to create inventory history
   if (
     updates.stock_quantity !== undefined &&
     updates.stock_quantity !== null &&
-    previousStock !== null &&
-    updates.stock_quantity !== previousStock
+    (previousStock === null || previousStock === undefined || updates.stock_quantity !== previousStock)
   ) {
-    const diff = Number(updates.stock_quantity) - Number(previousStock);
+    const prev = previousStock !== null && previousStock !== undefined ? Number(previousStock) : 0;
+    const next = Number(updates.stock_quantity);
+    const diff = next - prev;
+
+    let notes = `Stock adjusted from ${prev} to ${next}`;
+    if (previousStock === null || previousStock === undefined) {
+      notes = `Initial stock verified and set to ${next}`;
+    } else if (next === 0) {
+      notes = `Stock adjusted from ${prev} to 0 (out of stock)`;
+    } else if (diff > 0) {
+      notes = `Stock increased by +${diff} (${prev} → ${next})`;
+    } else {
+      notes = `Stock decreased by ${Math.abs(diff)} (${prev} → ${next})`;
+    }
+
     try {
-      await supabase.from("inventory_history").insert([
+      const { error: invErr } = await supabase.from("inventory_history").insert([
         {
           product_id: id,
           change_type: "manual_adjustment",
           quantity_change: diff,
-          quantity_after: Number(updates.stock_quantity),
-          notes: "Stock adjusted from admin portal",
+          quantity_after: next,
+          notes,
         },
       ]);
+      if (invErr) {
+        console.warn("[productService] Failed to record inventory history for adjustment:", invErr.message);
+      }
     } catch (invErr) {
       console.warn("[productService] Failed to record inventory history for adjustment:", invErr);
     }
