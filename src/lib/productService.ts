@@ -272,9 +272,63 @@ export async function updateProduct(
   }
 
   if (!data || data.length === 0) {
-    throw new Error(
-      `Failed to update product: No product was updated. Please check that the product exists and that your administrator account is authorized to modify inventory.`
-    );
+    // Collect thorough diagnostic information as specified in security and RLS requirements
+    let authUid = "unauthenticated";
+    let authEmail = "none";
+    let userRole = "no entry found in public.user_roles";
+    let isAdminFnResult = "not evaluated";
+    let productExistsInDb = false;
+
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      if (authData?.user) {
+        authUid = authData.user.id;
+        authEmail = authData.user.email || "no-email";
+
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", authUid)
+          .maybeSingle();
+
+        if (roleData?.role) {
+          userRole = roleData.role;
+        }
+
+        try {
+          const { data: rpcRes, error: rpcErr } = await supabase.rpc("is_admin");
+          if (rpcErr) {
+            isAdminFnResult = `RPC is_admin error (${rpcErr.code}): ${rpcErr.message}`;
+          } else {
+            isAdminFnResult = rpcRes ? "true" : "false";
+          }
+        } catch (rpcEx) {
+          isAdminFnResult = `RPC exception: ${rpcEx instanceof Error ? rpcEx.message : String(rpcEx)}`;
+        }
+      }
+
+      const { data: prodData } = await supabase
+        .from("products")
+        .select("id, name")
+        .eq("id", id)
+        .maybeSingle();
+
+      productExistsInDb = Boolean(prodData);
+    } catch (diagErr) {
+      console.warn("[productService] Diagnostic inspection error:", diagErr);
+    }
+
+    const diagnosticDetails = [
+      `Failed to update product: 0 rows modified. The database rejected or filtered out this UPDATE under Row Level Security.`,
+      `• Authenticated UID: ${authUid}`,
+      `• Authenticated Email: ${authEmail}`,
+      `• Role in public.user_roles: ${userRole}`,
+      `• public.is_admin() status: ${isAdminFnResult}`,
+      `• Product ID: ${id} (exists in DB: ${productExistsInDb ? "Yes" : "No"})`,
+      `• Resolution: Please ensure the 'Admins can update products' RLS policy is applied in your Supabase SQL Editor via the migration: supabase/migrations/20260923_fix_products_update_rls.sql`,
+    ].join("\n");
+
+    throw new Error(diagnosticDetails);
   }
 
   const updatedProduct = data[0] as DbProduct;

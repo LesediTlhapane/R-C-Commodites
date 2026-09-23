@@ -30,34 +30,13 @@ CREATE INDEX IF NOT EXISTS idx_user_roles_lookup ON public.user_roles(user_id, r
 -- Enable RLS on user_roles
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 
--- Policy: Users can view their own role
-DROP POLICY IF EXISTS "Users can read own roles" ON public.user_roles;
-CREATE POLICY "Users can read own roles"
-  ON public.user_roles
-  FOR SELECT
-  TO authenticated
-  USING (auth.uid() = user_id);
-
--- Policy: Only administrators can assign or alter roles
-DROP POLICY IF EXISTS "Admins can manage all user roles" ON public.user_roles;
-CREATE POLICY "Admins can manage all user roles"
-  ON public.user_roles
-  FOR ALL
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.user_roles
-      WHERE user_id = auth.uid() AND role = 'admin'
-    )
-  );
-
 -- 2. SECURITY DEFINER HELPER FUNCTIONS
--- This function runs with elevated privileges to check admin status safely in RLS policies.
+-- This function runs with elevated privileges to check admin status safely in RLS policies without infinite recursion.
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, auth
 STABLE
 AS $$
 BEGIN
@@ -75,16 +54,20 @@ BEGIN
 END;
 $$;
 
+-- Grant execute to authenticated and anon so PostgREST can evaluate policies using this function
+GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated, anon, service_role;
+
 -- Helper to quickly assign admin status by email (callable via Supabase SQL Editor)
 CREATE OR REPLACE FUNCTION public.assign_admin(admin_email TEXT)
 RETURNS TEXT
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, auth
 AS $$
 DECLARE
   target_id UUID;
 BEGIN
-  SELECT id INTO target_id FROM auth.users WHERE email = admin_email;
+  SELECT id INTO target_id FROM auth.users WHERE email = trim(admin_email);
   
   IF target_id IS NULL THEN
     RAISE EXCEPTION 'User % not found in auth.users. Please create the user in Supabase Auth first.', admin_email;
@@ -97,6 +80,25 @@ BEGIN
   RETURN 'Admin role successfully granted to ' || admin_email;
 END;
 $$;
+
+GRANT EXECUTE ON FUNCTION public.assign_admin(TEXT) TO authenticated, anon, service_role;
+
+-- Policy: Users can view their own role
+DROP POLICY IF EXISTS "Users can read own roles" ON public.user_roles;
+CREATE POLICY "Users can read own roles"
+  ON public.user_roles
+  FOR SELECT
+  TO authenticated
+  USING (auth.uid() = user_id);
+
+-- Policy: Only administrators can assign or alter roles
+DROP POLICY IF EXISTS "Admins can manage all user roles" ON public.user_roles;
+CREATE POLICY "Admins can manage all user roles"
+  ON public.user_roles
+  FOR ALL
+  TO authenticated
+  USING (public.is_admin())
+  WITH CHECK (public.is_admin());
 
 -- ==============================================================================
 -- 3. PRODUCTS TABLE RLS
@@ -121,7 +123,13 @@ BEGIN
       ON public.products
       FOR INSERT
       TO authenticated
-      WITH CHECK (public.is_admin());
+      WITH CHECK (
+        public.is_admin() OR
+        EXISTS (
+          SELECT 1 FROM public.user_roles
+          WHERE user_roles.user_id = auth.uid() AND user_roles.role = 'admin'
+        )
+      );
 
     -- Admin Update
     DROP POLICY IF EXISTS "Admins can update products" ON public.products;
@@ -129,8 +137,20 @@ BEGIN
       ON public.products
       FOR UPDATE
       TO authenticated
-      USING (public.is_admin())
-      WITH CHECK (public.is_admin());
+      USING (
+        public.is_admin() OR
+        EXISTS (
+          SELECT 1 FROM public.user_roles
+          WHERE user_roles.user_id = auth.uid() AND user_roles.role = 'admin'
+        )
+      )
+      WITH CHECK (
+        public.is_admin() OR
+        EXISTS (
+          SELECT 1 FROM public.user_roles
+          WHERE user_roles.user_id = auth.uid() AND user_roles.role = 'admin'
+        )
+      );
 
     -- Admin Delete
     DROP POLICY IF EXISTS "Admins can delete products" ON public.products;
@@ -138,7 +158,13 @@ BEGIN
       ON public.products
       FOR DELETE
       TO authenticated
-      USING (public.is_admin());
+      USING (
+        public.is_admin() OR
+        EXISTS (
+          SELECT 1 FROM public.user_roles
+          WHERE user_roles.user_id = auth.uid() AND user_roles.role = 'admin'
+        )
+      );
   END IF;
 END $$;
 
@@ -277,7 +303,19 @@ BEGIN
       ON public.inventory_history
       FOR ALL
       TO authenticated
-      USING (public.is_admin())
-      WITH CHECK (public.is_admin());
+      USING (
+        public.is_admin() OR
+        EXISTS (
+          SELECT 1 FROM public.user_roles
+          WHERE user_roles.user_id = auth.uid() AND user_roles.role = 'admin'
+        )
+      )
+      WITH CHECK (
+        public.is_admin() OR
+        EXISTS (
+          SELECT 1 FROM public.user_roles
+          WHERE user_roles.user_id = auth.uid() AND user_roles.role = 'admin'
+        )
+      );
   END IF;
 END $$;

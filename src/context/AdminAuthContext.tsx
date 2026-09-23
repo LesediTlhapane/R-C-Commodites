@@ -32,6 +32,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     if (!isConfigured) return false;
 
     try {
+      // 1. Direct query on public.user_roles
       const { data, error } = await supabase
         .from("user_roles")
         .select("role")
@@ -39,12 +40,21 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         .eq("role", "admin")
         .maybeSingle();
 
-      if (error) {
-        console.warn("[AdminAuth] Error checking user role in database:", error.message);
-        return false;
+      if (!error && data && data.role === "admin") {
+        return true;
       }
 
-      return Boolean(data && data.role === "admin");
+      // 2. RPC is_admin() fallback check
+      try {
+        const { data: rpcAdmin } = await supabase.rpc("is_admin");
+        if (rpcAdmin === true) {
+          return true;
+        }
+      } catch {
+        // Fallback silently if RPC not yet deployed
+      }
+
+      return false;
     } catch (err) {
       console.error("[AdminAuth] Unexpected error during role verification:", err);
       return false;

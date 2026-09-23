@@ -92,9 +92,11 @@ export function AdminGuard({ children }: AdminGuardProps) {
             <div className="flex items-center gap-1.5 text-primary font-semibold uppercase tracking-wider text-[10px] mb-1">
               <KeyRound size={12} /> How to Grant Access
             </div>
-            To grant this account admin privileges, run this SQL query in your Supabase SQL Editor:
-            <code className="block mt-2 p-2 rounded bg-neutral-900 border border-neutral-800 font-mono text-emerald-400 text-[11px] select-all overflow-x-auto">
-              SELECT public.assign_admin('{user.email}');
+            To grant this account admin privileges, run this query in your Supabase SQL Editor:
+            <code className="block mt-2 p-2 rounded bg-neutral-900 border border-neutral-800 font-mono text-emerald-400 text-[11px] select-all overflow-x-auto whitespace-pre">
+{`INSERT INTO public.user_roles (user_id, role)
+VALUES ('${user.id}', 'admin')
+ON CONFLICT (user_id, role) DO NOTHING;`}
             </code>
           </div>
 

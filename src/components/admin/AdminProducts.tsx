@@ -341,14 +341,24 @@ export function AdminProducts() {
       )}
 
       {errorMessage && (
-        <div className="rounded-lg bg-red-950/80 border border-red-500/50 p-4 text-sm text-red-200 flex items-center justify-between shadow-lg">
-          <div className="flex items-center gap-2.5">
-            <AlertTriangle size={18} className="text-red-400 shrink-0" />
-            <span className="font-semibold">{errorMessage}</span>
+        <div className="rounded-lg bg-red-950/90 border border-red-500/60 p-4 text-sm text-red-200 shadow-xl space-y-2">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle size={18} className="text-red-400 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <span className="font-bold text-red-100">Operation Error</span>
+                <div className="whitespace-pre-wrap font-mono text-xs text-red-200/90 leading-relaxed bg-black/40 p-3 rounded border border-red-900/50">
+                  {errorMessage}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setErrorMessage(null)}
+              className="text-red-400 hover:text-white shrink-0 p-1 rounded hover:bg-red-900/50 cursor-pointer"
+            >
+              <X size={16} />
+            </button>
           </div>
-          <button onClick={() => setErrorMessage(null)} className="text-red-400 hover:text-white">
-            <X size={16} />
-          </button>
         </div>
       )}
 
