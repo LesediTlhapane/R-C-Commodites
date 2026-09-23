@@ -62,8 +62,24 @@ export default function App() {
       }
     });
 
+    // 3. Fallback sync on window focus and periodic refresh (every 45s)
+    const refreshProducts = () => {
+      getStorefrontProducts()
+        .then((data) => {
+          if (isMounted && data.length > 0) {
+            setProducts(data);
+          }
+        })
+        .catch(() => {});
+    };
+
+    const intervalId = window.setInterval(refreshProducts, 45000);
+    window.addEventListener("focus", refreshProducts);
+
     return () => {
       isMounted = false;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refreshProducts);
       unsubscribe();
     };
   }, []);

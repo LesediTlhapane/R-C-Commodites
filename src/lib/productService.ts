@@ -53,7 +53,7 @@ export function mapDbProductToTyre(p: DbProduct): TyreProduct {
     image,
     features,
     stockQuantity: p.stock_quantity !== null && p.stock_quantity !== undefined ? Number(p.stock_quantity) : null,
-    stockVerified: Boolean(p.stock_verified),
+    stockVerified: Boolean(p.stock_verified || (p.stock_quantity !== null && p.stock_quantity !== undefined)),
     active: p.active !== false,
     description: p.description || "",
   };
@@ -121,8 +121,10 @@ export function subscribeToProductsRealtime(
     return () => {};
   }
 
+  // Use a unique channel name per subscriber to prevent collisions during React StrictMode/re-mounts
+  const channelName = `products-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
   const channel = supabase
-    .channel("public-products-channel")
+    .channel(channelName)
     .on(
       "postgres_changes",
       {
@@ -140,13 +142,13 @@ export function subscribeToProductsRealtime(
     )
     .subscribe((status, err) => {
       if (status === "SUBSCRIBED") {
-        console.log("[productService] Realtime subscribed to public.products");
+        console.log(`[productService] Realtime subscribed to public.products (${channelName})`);
       } else if (status === "CHANNEL_ERROR") {
-        console.error("[productService] Realtime channel error on products:", err);
+        console.warn("[productService] Realtime channel paused or awaiting reconnect:", err);
       } else if (status === "TIMED_OUT") {
         console.warn("[productService] Realtime subscription timed out");
       } else if (status === "CLOSED") {
-        console.log("[productService] Realtime channel closed");
+        // Normal teardown
       }
     });
 

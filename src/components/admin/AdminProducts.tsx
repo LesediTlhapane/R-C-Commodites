@@ -598,7 +598,7 @@ export function AdminProducts() {
                               onClick={() => {
                                 setQuickStockId(p.id);
                                 setQuickStockVal(p.stock_quantity !== null ? String(p.stock_quantity) : "");
-                                setQuickStockVerified(Boolean(p.stock_verified));
+                                setQuickStockVerified(Boolean(p.stock_verified || p.stock_quantity !== null));
                               }}
                               className="text-neutral-500 hover:text-primary transition-colors p-1"
                               title="Quick Stock Update"
