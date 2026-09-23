@@ -4,7 +4,7 @@ import { useAdminAuth } from "../../context/AdminAuthContext";
 import { useRouter } from "../../lib/router";
 import logoAsset from "../../assets/rc-logo.png";
 import vredesteinLogo from "../../assets/vredestein-logo.png";
-import backgroundAsset from "../../assets/background.png";
+import adminBgAsset from "../../assets/impossibleview.png";
 
 export function AdminLogin() {
   const { user, isAdmin, isLoading, isConfigured, signIn, authError } = useAdminAuth();
@@ -50,14 +50,15 @@ export function AdminLogin() {
 
   return (
     <div className="relative isolate min-h-screen bg-neutral-950 text-white flex flex-col justify-center items-center p-4 sm:p-6 overflow-hidden">
-      {/* Background with tuned contrast */}
+      {/* High-impact background with high opacity and stylish black theme framing */}
       <img
-        src={backgroundAsset}
+        src={adminBgAsset}
         alt=""
         aria-hidden="true"
-        className="pointer-events-none fixed inset-0 -z-20 h-full w-full object-cover opacity-35 filter contrast-125"
+        className="pointer-events-none fixed inset-0 -z-20 h-full w-full object-cover object-center opacity-50 filter contrast-125 saturate-110 scale-105"
       />
-      <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-b from-neutral-950/90 via-neutral-950/80 to-neutral-950/95" />
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-b from-neutral-950/85 via-neutral-950/70 to-neutral-950/90" />
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 bg-radial-[at_center] from-transparent via-neutral-950/50 to-neutral-950/90" />
 
       {/* Back to Storefront Link */}
       <div className="w-full max-w-md mb-4 flex items-center justify-between">

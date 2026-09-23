@@ -17,7 +17,7 @@ import { useAdminAuth } from "../../context/AdminAuthContext";
 import { useRouter } from "../../lib/router";
 import logoAsset from "../../assets/rc-logo.png";
 import vredesteinLogo from "../../assets/vredestein-logo.png";
-import superbikeAsset from "../../assets/4441b341551467148ef7784290a470fd.jpg";
+import adminBgAsset from "../../assets/impossibleview.png";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -183,15 +183,17 @@ export function AdminLayout({ children, activePath }: AdminLayoutProps) {
 
       {/* MAIN CONTENT AREA */}
       <div className="flex-1 flex flex-col min-w-0 relative isolate">
-        {/* Background Image with atmospheric dark overlay for high contrast readability */}
-        <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-20 md:left-72">
+        {/* Background Image with higher opacity and stylish motorsport black aesthetic */}
+        <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-20 md:left-72 overflow-hidden bg-neutral-950">
           <img
-            src={superbikeAsset}
+            src={adminBgAsset}
             alt=""
-            className="w-full h-full object-cover object-center opacity-15 filter contrast-125 saturate-50"
+            className="w-full h-full object-cover object-right-top md:object-center opacity-45 md:opacity-50 filter contrast-125 saturate-110 scale-105"
           />
         </div>
-        <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 md:left-72 bg-gradient-to-b from-neutral-950/90 via-neutral-950/85 to-neutral-950/95 backdrop-blur-[2px]" />
+        {/* Sleek black vignette overlays to ensure top-notch text readability while preserving image presence */}
+        <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 md:left-72 bg-gradient-to-b from-neutral-950/80 via-neutral-950/65 to-neutral-950/90" />
+        <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 md:left-72 bg-radial-[at_top_right] from-transparent via-neutral-950/40 to-neutral-950/90" />
 
         {/* Top desktop header banner */}
         <div className="hidden md:flex items-center justify-between px-8 py-4 border-b border-neutral-800/80 bg-neutral-950/60 backdrop-blur-sm sticky top-0 z-30">
