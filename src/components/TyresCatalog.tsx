@@ -1,4 +1,4 @@
-import { Tag, ShoppingBag, ShieldCheck, Phone, Check } from "lucide-react";
+import { Tag, ShoppingBag, ShieldCheck, Phone, Check, AlertCircle, CheckCircle2, HelpCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import type { Range, TyreProduct } from "../types";
 import { ShopButton } from "./ShopButton";
@@ -276,44 +276,84 @@ export function TyresCatalog({
                       <th className="p-4">Tyre Model</th>
                       <th className="p-4">Size Specification</th>
                       <th className="p-4">Position</th>
+                      <th className="p-4">Stock Status</th>
                       <th className="p-4">Selling Price</th>
                       <th className="p-4 text-right">Cart Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {filteredProducts.map((product) => (
-                      <tr key={product.id} className="hover:bg-surface-soft/60 transition-colors">
-                        <td className="p-4 font-bold text-foreground">
-                          <span
-                            className={`inline-block rounded-xs px-2 py-0.5 text-[10px] font-black uppercase mr-2.5 ${
-                              product.range === "NS" ? "bg-primary text-white" : "bg-steel text-white"
-                            }`}
-                          >
-                            {product.range}
-                          </span>
-                          {product.name}
-                        </td>
-                        <td className="p-4 font-display font-semibold text-foreground">
-                          {product.size}
-                        </td>
-                        <td className="p-4 text-xs uppercase font-medium text-foreground-muted">
-                          {product.position}
-                        </td>
-                        <td className="p-4">
-                          <span className="font-display font-bold text-base text-primary">
-                            R {product.price.toLocaleString("en-ZA")}.00
-                          </span>
-                        </td>
-                        <td className="p-4 text-right">
-                          <button
-                            onClick={() => onAddToCart(product)}
-                            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-primary-hover transition-colors shadow-xs active:scale-95"
-                          >
-                            <ShoppingBag size={13} /> Add
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {filteredProducts.map((product) => {
+                      const isStockVerified = Boolean(product.stockVerified);
+                      const stockQty = product.stockQuantity;
+                      const isInStock = isStockVerified && stockQty !== null && stockQty > 0;
+                      const isOutOfStock = isStockVerified && stockQty === 0;
+
+                      return (
+                        <tr key={product.id} className="hover:bg-surface-soft/60 transition-colors">
+                          <td className="p-4 font-bold text-foreground">
+                            <span
+                              className={`inline-block rounded-xs px-2 py-0.5 text-[10px] font-black uppercase mr-2.5 ${
+                                product.range === "NS" ? "bg-primary text-white" : "bg-steel text-white"
+                              }`}
+                            >
+                              {product.range}
+                            </span>
+                            {product.name}
+                          </td>
+                          <td className="p-4 font-display font-semibold text-foreground">
+                            {product.size}
+                          </td>
+                          <td className="p-4 text-xs uppercase font-medium text-foreground-muted">
+                            {product.position}
+                          </td>
+                          <td className="p-4">
+                            {isInStock ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold uppercase text-emerald-600 dark:text-emerald-400">
+                                <CheckCircle2 size={11} /> IN STOCK ({stockQty})
+                              </span>
+                            ) : isOutOfStock ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 border border-red-500/20 px-2.5 py-0.5 text-[10px] font-bold uppercase text-red-600 dark:text-red-400">
+                                <AlertCircle size={11} /> OUT OF STOCK
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 text-[10px] font-bold uppercase text-amber-600 dark:text-amber-400">
+                                <HelpCircle size={11} /> STOCK NOT VERIFIED
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-4">
+                            <span className="font-display font-bold text-base text-primary">
+                              R {product.price.toLocaleString("en-ZA")}.00
+                            </span>
+                          </td>
+                          <td className="p-4 text-right">
+                            {isInStock ? (
+                              <button
+                                onClick={() => onAddToCart(product)}
+                                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-primary-hover transition-colors shadow-xs active:scale-95 cursor-pointer"
+                              >
+                                <ShoppingBag size={13} /> Add
+                              </button>
+                            ) : isOutOfStock ? (
+                              <button
+                                disabled
+                                className="inline-flex items-center gap-1.5 rounded-md bg-neutral-800/40 border border-neutral-700/50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-neutral-500 cursor-not-allowed"
+                              >
+                                Out of Stock
+                              </button>
+                            ) : (
+                              <button
+                                disabled
+                                title="Stock has not yet been verified by Selby warehouse."
+                                className="inline-flex items-center gap-1.5 rounded-md bg-neutral-800/40 border border-neutral-700/50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-neutral-500 cursor-not-allowed"
+                              >
+                                Unverified
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -350,6 +390,26 @@ export function TyresCatalog({
                       <span className="absolute right-3.5 top-3.5 rounded-md bg-neutral-950/80 px-2.5 py-1 text-[10px] font-bold text-white uppercase backdrop-blur-xs">
                         {product.position} Tyre
                       </span>
+
+                      {/* Authoritative Stock Status Badge Overlay */}
+                      <div className="absolute bottom-3 left-3.5">
+                        {product.stockVerified && product.stockQuantity !== null && product.stockQuantity > 0 ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-md bg-neutral-950/85 border border-emerald-500/40 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-400 backdrop-blur-xs shadow-sm">
+                            <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            IN STOCK ({product.stockQuantity})
+                          </span>
+                        ) : product.stockVerified && product.stockQuantity === 0 ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-md bg-neutral-950/90 border border-red-500/40 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-red-400 backdrop-blur-xs shadow-sm">
+                            <span className="size-1.5 rounded-full bg-red-400" />
+                            OUT OF STOCK
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 rounded-md bg-neutral-950/85 border border-amber-500/40 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-amber-300 backdrop-blur-xs shadow-sm">
+                            <span className="size-1.5 rounded-full bg-amber-400" />
+                            STOCK NOT VERIFIED
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Details */}
@@ -388,15 +448,32 @@ export function TyresCatalog({
                     </div>
                   </div>
 
-                  {/* Add to Cart CTA */}
+                  {/* Add to Cart CTA with exact stock compliance */}
                   <div className="p-5 pt-0">
-                    <ShopButton
-                      variant="dark"
-                      className="w-full uppercase tracking-wider text-xs font-bold"
-                      onClick={() => onAddToCart(product)}
-                    >
-                      Add to cart <ShoppingBag size={15} />
-                    </ShopButton>
+                    {product.stockVerified && product.stockQuantity !== null && product.stockQuantity > 0 ? (
+                      <ShopButton
+                        variant="dark"
+                        className="w-full uppercase tracking-wider text-xs font-bold cursor-pointer"
+                        onClick={() => onAddToCart(product)}
+                      >
+                        Add to cart <ShoppingBag size={15} />
+                      </ShopButton>
+                    ) : product.stockVerified && product.stockQuantity === 0 ? (
+                      <button
+                        disabled
+                        className="w-full rounded-md bg-neutral-800/50 border border-neutral-700/60 py-3 text-xs font-black uppercase tracking-wider text-neutral-400 cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        <AlertCircle size={15} className="text-red-400" /> OUT OF STOCK
+                      </button>
+                    ) : (
+                      <button
+                        disabled
+                        title="Stock has not yet been verified by the Selby warehouse."
+                        className="w-full rounded-md bg-neutral-800/40 border border-neutral-700/50 py-3 text-xs font-bold uppercase tracking-wider text-neutral-500 cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        <HelpCircle size={15} className="text-amber-400" /> STOCK NOT VERIFIED
+                      </button>
+                    )}
                   </div>
                 </motion.article>
               ))}

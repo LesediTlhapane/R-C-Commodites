@@ -71,15 +71,20 @@ export function AccessoriesSection({ accessories, onAddAccessory }: AccessoriesS
               </div>
 
               <div className="mt-6 pt-4 border-t border-neutral-800 flex items-center justify-between">
-                <span className="font-display text-base text-primary font-bold">
-                  R{item.price.toLocaleString("en-ZA")}.00
-                </span>
-                <button
-                  onClick={() => onAddAccessory(item)}
+                <div>
+                  <span className="font-display text-base text-primary font-bold block">
+                    R{item.price.toLocaleString("en-ZA")}.00
+                  </span>
+                  <span className="text-[10px] text-amber-400 font-medium">On-Demand Order</span>
+                </div>
+                <a
+                  href={`https://wa.me/27832273237?text=${encodeURIComponent(`Hi Costa, I would like to order the ${item.title} (${item.category}) for R${item.price}. Please confirm stock availability.`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 rounded-md bg-neutral-800 border border-neutral-700/80 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-primary hover:border-primary transition-colors active:scale-95 cursor-pointer"
                 >
-                  <ShoppingBag size={13} /> Add
-                </button>
+                  <ExternalLink size={13} /> Enquire
+                </a>
               </div>
             </div>
           ))}

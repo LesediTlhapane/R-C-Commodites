@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Check } from "lucide-react";
 import { Header } from "./components/Header";
 import { Hero } from "./components/Hero";
@@ -14,23 +14,16 @@ import { Footer } from "./components/Footer";
 import { CartDrawer } from "./components/CartDrawer";
 import { MobileQuickBar } from "./components/MobileQuickBar";
 
-import { tyreProducts, tyreCombos, accessoryCategories } from "./data/products";
+import { tyreProducts as fallbackProducts, tyreCombos, accessoryCategories } from "./data/products";
 import type { CartItem, Range, TyreProduct, TyreCombo, AccessoryItem } from "./types";
 import backgroundAsset from "./assets/background.png";
 import { resolveAsset } from "./lib/assetHelper";
 import { useRouter } from "./lib/router";
 import { AdminRoutes } from "./components/admin/AdminRoutes";
-
-const sizeOptions = [
-  "All sizes",
-  "120/70 ZR 17",
-  "180/55 ZR 17",
-  "190/50 ZR 17",
-  "190/55 ZR 17",
-  "200/55 ZR 17",
-];
+import { getStorefrontProducts, subscribeToProductsRealtime, mapDbProductToTyre } from "./lib/productService";
 
 export default function App() {
+  const [products, setProducts] = useState<TyreProduct[]>(fallbackProducts);
   const [range, setRange] = useState<Range>("All");
   const [selectedSize, setSelectedSize] = useState("All sizes");
   const [selectedPosition, setSelectedPosition] = useState("All");
@@ -44,6 +37,46 @@ export default function App() {
   const [finderWidth, setFinderWidth] = useState("All");
   const [finderProfile, setFinderProfile] = useState("All");
 
+  // 1. Fetch live products from Supabase on mount
+  useEffect(() => {
+    let isMounted = true;
+    getStorefrontProducts()
+      .then((data) => {
+        if (isMounted && data.length > 0) {
+          setProducts(data);
+        }
+      })
+      .catch((err) => console.warn("[App] Error loading products:", err));
+
+    // 2. Realtime listener for product stock, price, or details updates
+    const unsubscribe = subscribeToProductsRealtime((payload) => {
+      console.log("[App] Realtime event on products:", payload.eventType);
+      if (payload.eventType === "INSERT" && payload.new) {
+        const mapped = mapDbProductToTyre(payload.new);
+        setProducts((prev) => [...prev, mapped]);
+      } else if (payload.eventType === "UPDATE" && payload.new) {
+        const mapped = mapDbProductToTyre(payload.new);
+        setProducts((prev) => prev.map((p) => (String(p.id) === String(mapped.id) ? mapped : p)));
+      } else if (payload.eventType === "DELETE" && payload.old?.id) {
+        setProducts((prev) => prev.filter((p) => String(p.id) !== String(payload.old?.id)));
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
+
+  // Compute dynamic size options from available products
+  const sizeOptions = useMemo(() => {
+    const set = new Set<string>();
+    products.forEach((p) => {
+      if (p.size) set.add(p.size);
+    });
+    return ["All sizes", ...Array.from(set)];
+  }, [products]);
+
   const totalCartCount = useMemo(
     () => cartItems.reduce((acc, item) => acc + item.quantity, 0),
     [cartItems]
@@ -55,13 +88,14 @@ export default function App() {
   );
 
   const filteredProducts = useMemo(() => {
-    return tyreProducts.filter((product) => {
+    return products.filter((product) => {
+      if (product.active === false) return false;
       const matchRange = range === "All" || product.range === range;
       const matchSize = selectedSize === "All sizes" || product.size === selectedSize;
       const matchPosition = selectedPosition === "All" || product.position === selectedPosition;
       return matchRange && matchSize && matchPosition;
     });
-  }, [range, selectedSize, selectedPosition]);
+  }, [products, range, selectedSize, selectedPosition]);
 
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
@@ -73,10 +107,25 @@ export default function App() {
   };
 
   const addTyreToCart = (product: TyreProduct) => {
+    // Check authoritative stock rule: Stock must be verified and > 0
+    if (!product.stockVerified) {
+      showToast("Stock for this tyre is not verified. Please enquire via WhatsApp.");
+      return;
+    }
+    const available = product.stockQuantity ?? 0;
+    if (available <= 0) {
+      showToast("This tyre is currently Out of Stock.");
+      return;
+    }
+
     const itemId = `tyre-${product.id}`;
     setCartItems((prev) => {
       const existing = prev.find((item) => item.id === itemId);
       if (existing) {
+        if (existing.quantity >= available) {
+          showToast(`Only ${available} unit(s) available in stock.`);
+          return prev;
+        }
         return prev.map((item) =>
           item.id === itemId ? { ...item, quantity: item.quantity + 1 } : item
         );
@@ -90,6 +139,9 @@ export default function App() {
           price: product.price,
           quantity: 1,
           image: product.image,
+          productId: String(product.id),
+          maxStock: available,
+          stockVerified: product.stockVerified,
         },
       ];
     });
@@ -113,6 +165,8 @@ export default function App() {
           subtitle: `${combo.frontSize} + ${combo.rearSize}`,
           price: combo.price,
           quantity: 1,
+          comboId: combo.id,
+          stockVerified: true,
         },
       ];
     });

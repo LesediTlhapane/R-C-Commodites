@@ -1,5 +1,7 @@
-import { X, Trash2, Plus, Minus, Phone, MessageSquare, ShoppingBag, ArrowRight } from "lucide-react";
+import React, { useState } from "react";
+import { X, Trash2, Plus, Minus, Phone, MessageSquare, ShoppingBag, ArrowRight, AlertTriangle, RefreshCw } from "lucide-react";
 import type { CartItem } from "../types";
+import { validateCartStock } from "../lib/productService";
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -18,6 +20,9 @@ export function CartDrawer({
   onRemoveItem,
   onClearCart,
 }: CartDrawerProps) {
+  const [validating, setValidating] = useState(false);
+  const [stockErrors, setStockErrors] = useState<string[]>([]);
+
   if (!isOpen) return null;
 
   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -31,6 +36,37 @@ export function CartDrawer({
       `Hi Costa (R&C Commodities),\n\nI would like to order the following motorcycle tyres/accessories:\n\n${lines.join("\n")}\n\nTotal: R${total.toLocaleString("en-ZA")}.00\n\nPlease confirm availability and fitment/delivery in Selby, Johannesburg.`
     );
     return `https://wa.me/27832273237?text=${text}`;
+  };
+
+  const handleProceedToWhatsApp = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    setValidating(true);
+    setStockErrors([]);
+
+    try {
+      const res = await validateCartStock(
+        items.map((it) => ({
+          productId: it.productId,
+          quantity: it.quantity,
+          title: it.title,
+        }))
+      );
+
+      if (!res.valid) {
+        setStockErrors(res.errors);
+        setValidating(false);
+        return;
+      }
+
+      // Stock is validated - open WhatsApp order window
+      window.location.href = getWhatsAppLink();
+    } catch (err) {
+      console.warn("Stock verification error:", err);
+      // Fallback
+      window.location.href = getWhatsAppLink();
+    } finally {
+      setValidating(false);
+    }
   };
 
   return (
@@ -149,6 +185,23 @@ export function CartDrawer({
           {/* Footer Checkout actions */}
           {items.length > 0 && (
             <div className="border-t border-border bg-surface-soft p-6 space-y-4">
+              {/* Stock Validation Error Warnings */}
+              {stockErrors.length > 0 && (
+                <div className="rounded-lg border border-red-500/40 bg-red-950/80 p-3.5 space-y-1.5 text-xs text-red-200">
+                  <div className="flex items-center gap-1.5 font-bold text-red-400 uppercase tracking-wider text-[11px]">
+                    <AlertTriangle size={14} className="shrink-0" /> Stock Verification Issue
+                  </div>
+                  <ul className="list-disc list-inside space-y-1 text-[11px] leading-relaxed">
+                    {stockErrors.map((err, i) => (
+                      <li key={i}>{err}</li>
+                    ))}
+                  </ul>
+                  <p className="text-[10px] text-neutral-400 pt-1 italic">
+                    Please adjust your cart quantity or contact Costa directly for Selby stock availability.
+                  </p>
+                </div>
+              )}
+
               <div className="flex items-baseline justify-between">
                 <span className="text-sm font-bold uppercase tracking-wider text-foreground-muted">Order Total</span>
                 <span className="font-display text-2xl text-foreground font-black">
@@ -160,15 +213,23 @@ export function CartDrawer({
               </p>
 
               <div className="grid grid-cols-1 gap-2.5 pt-1">
-                <a
-                  href={getWhatsAppLink()}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex w-full items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 py-3.5 text-xs font-black uppercase tracking-wider text-white shadow-lg transition-all hover:bg-emerald-700 active:scale-98"
+                <button
+                  onClick={handleProceedToWhatsApp}
+                  disabled={validating}
+                  className="flex w-full items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 py-3.5 text-xs font-black uppercase tracking-wider text-white shadow-lg transition-all hover:bg-emerald-700 active:scale-98 cursor-pointer disabled:opacity-50"
                 >
-                  <MessageSquare size={18} />
-                  Order via WhatsApp Directly
-                </a>
+                  {validating ? (
+                    <>
+                      <RefreshCw size={16} className="animate-spin" />
+                      Checking Selby Stock...
+                    </>
+                  ) : (
+                    <>
+                      <MessageSquare size={18} />
+                      Order via WhatsApp Directly
+                    </>
+                  )}
+                </button>
                 <a
                   href="tel:+27832273237"
                   className="flex w-full items-center justify-center gap-2 rounded-md border border-neutral-700 bg-neutral-900 px-4 py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-neutral-800"
