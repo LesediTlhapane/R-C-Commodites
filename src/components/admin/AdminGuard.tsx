@@ -3,6 +3,7 @@ import { ShieldAlert, LogOut, ArrowLeft, RefreshCw, KeyRound } from "lucide-reac
 import { useAdminAuth } from "../../context/AdminAuthContext";
 import { useRouter } from "../../lib/router";
 import logoAsset from "../../assets/rc-logo.png";
+import superbikeAsset from "../../assets/4441b341551467148ef7784290a470fd.jpg";
 
 interface AdminGuardProps {
   children: React.ReactNode;
@@ -54,7 +55,16 @@ export function AdminGuard({ children }: AdminGuardProps) {
   // Authenticated, but lacking the 'admin' role in public.user_roles
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-neutral-950 text-white flex items-center justify-center p-4">
+      <div className="relative isolate min-h-screen bg-neutral-950 text-white flex items-center justify-center p-4 overflow-hidden">
+        {/* Atmospheric superbike background */}
+        <img
+          src={superbikeAsset}
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none fixed inset-0 -z-20 h-full w-full object-cover opacity-25 filter contrast-125 saturate-50"
+        />
+        <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-b from-neutral-950/90 via-neutral-950/85 to-neutral-950/95 backdrop-blur-[2px]" />
+
         <div className="max-w-md w-full rounded-2xl border border-neutral-800 bg-neutral-900/90 backdrop-blur-md p-6 sm:p-8 shadow-2xl">
           <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-red-950/60 border border-red-800/80 text-red-400 mb-5 mx-auto">
             <ShieldAlert size={28} />

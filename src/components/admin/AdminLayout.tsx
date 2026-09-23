@@ -17,6 +17,7 @@ import { useAdminAuth } from "../../context/AdminAuthContext";
 import { useRouter } from "../../lib/router";
 import logoAsset from "../../assets/rc-logo.png";
 import vredesteinLogo from "../../assets/vredestein-logo.png";
+import superbikeAsset from "../../assets/4441b341551467148ef7784290a470fd.jpg";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -181,7 +182,17 @@ export function AdminLayout({ children, activePath }: AdminLayoutProps) {
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 relative isolate">
+        {/* Background Image with atmospheric dark overlay for high contrast readability */}
+        <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-20 md:left-72">
+          <img
+            src={superbikeAsset}
+            alt=""
+            className="w-full h-full object-cover object-center opacity-15 filter contrast-125 saturate-50"
+          />
+        </div>
+        <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 md:left-72 bg-gradient-to-b from-neutral-950/90 via-neutral-950/85 to-neutral-950/95 backdrop-blur-[2px]" />
+
         {/* Top desktop header banner */}
         <div className="hidden md:flex items-center justify-between px-8 py-4 border-b border-neutral-800/80 bg-neutral-950/60 backdrop-blur-sm sticky top-0 z-30">
           <div className="flex items-center gap-3 text-xs">
