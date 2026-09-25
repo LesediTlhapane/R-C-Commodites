@@ -6,6 +6,7 @@ import { AdminLayout } from "./AdminLayout";
 import { AdminDashboard } from "./AdminDashboard";
 import { AdminPlaceholder } from "./AdminPlaceholder";
 import { AdminProducts } from "./AdminProducts";
+import { AdminOrders } from "./AdminOrders";
 
 export function AdminRoutes() {
   const { pathname } = useRouter();
@@ -30,7 +31,7 @@ export function AdminRoutes() {
     content = <AdminProducts />;
     activePath = "/admin/inventory";
   } else if (pathname === "/admin/orders") {
-    content = <AdminPlaceholder module="orders" />;
+    content = <AdminOrders />;
     activePath = "/admin/orders";
   } else {
     // Default to /admin dashboard

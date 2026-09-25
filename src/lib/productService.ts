@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from "./supabase";
-import type { DbProduct, TyreProduct, TyreCombo, InventoryHistoryItem } from "../types";
+import type { DbProduct, TyreProduct, TyreCombo, InventoryHistoryItem, DbCombo, DbAccessory, AccessoryItem } from "../types";
 import { tyreProducts as fallbackProducts, tyreCombos as fallbackCombos } from "../data/products";
 import { getTyreProfileImage } from "./assetHelper";
 
@@ -402,27 +402,263 @@ export async function getInventoryHistory(productId?: string): Promise<Inventory
 }
 
 /**
+ * Maps a database combo row and its underlying products to the TyreCombo model.
+ * Performs dual-product stock validation:
+ * Combo is purchasable only when BOTH front & rear tyres are active, stock_verified, and stock_quantity > 0.
+ */
+export function mapDbComboToCombo(
+  c: DbCombo,
+  productsMap: Map<string, TyreProduct>
+): TyreCombo {
+  const front = productsMap.get(c.front_product_id) || null;
+  const rear = productsMap.get(c.rear_product_id) || null;
+
+  // Extract sizes from combo name or underlying products
+  const frontSize = front?.size || "120/70 ZR 17";
+  const rearSize = rear?.size || (c.name.includes("180/55") ? "180/55 ZR 17" : c.name.includes("190/55") ? "190/55 ZR 17" : "190/50 ZR 17");
+
+  // Determine tag & popular bikes based on sizing
+  let tag = "Best Value ST Combo";
+  let popularBikes = "Popular for MT-07, MT-09, Z900, Street Triple, CB650R, GSX-S750";
+  if (rearSize.includes("190/55")) {
+    tag = "Most Popular Super Touring";
+    popularBikes = "Popular for S1000XR, Multistrada, Ninja 1000SX, Super Duke GT";
+  } else if (rearSize.includes("190/50")) {
+    tag = "Heavyweight Tourer Combo";
+    popularBikes = "Popular for Hayabusa, ZX-14R, FZ1, Fireblade, GSX-R1000";
+  }
+
+  // Stock evaluation: Both underlying products must be active, stock_verified, and have stock_quantity > 0
+  let purchasable = true;
+  let unpurchasableReason: string | null = null;
+  let availableStock = 0;
+
+  if (!front || !rear) {
+    purchasable = false;
+    unpurchasableReason = "Component tyres not found in catalogue";
+  } else if (!front.active || !rear.active) {
+    purchasable = false;
+    unpurchasableReason = "One or more component tyres are discontinued";
+  } else if (!front.stockVerified) {
+    purchasable = false;
+    unpurchasableReason = "Front Tyre Stock Not Verified";
+  } else if (!rear.stockVerified) {
+    purchasable = false;
+    unpurchasableReason = "Rear Tyre Stock Not Verified";
+  } else {
+    const frontQty = front.stockQuantity ?? 0;
+    const rearQty = rear.stockQuantity ?? 0;
+
+    if (frontQty <= 0 && rearQty <= 0) {
+      purchasable = false;
+      unpurchasableReason = "Both Front and Rear Tyres are OUT OF STOCK";
+    } else if (frontQty <= 0) {
+      purchasable = false;
+      unpurchasableReason = "Front Tyre is OUT OF STOCK";
+    } else if (rearQty <= 0) {
+      purchasable = false;
+      unpurchasableReason = "Rear Tyre is OUT OF STOCK";
+    } else {
+      availableStock = Math.min(frontQty, rearQty);
+      purchasable = availableStock > 0;
+    }
+  }
+
+  return {
+    id: c.id,
+    title: c.name,
+    range: (c.name.includes("NS") ? "NS" : "ST") as "ST" | "NS",
+    frontSize: `${frontSize} (Front)`,
+    rearSize: `${rearSize} (Rear)`,
+    price: Number(c.combo_price),
+    regularPrice: Number(c.regular_price),
+    savings: Number(c.savings),
+    popularBikes,
+    tag,
+    subtitle: `${frontSize} Front + ${rearSize} Rear`,
+    description: c.description || "Factory-matched front and rear tyre pair.",
+    active: c.active !== false,
+    frontProductId: c.front_product_id,
+    rearProductId: c.rear_product_id,
+    frontProduct: front,
+    rearProduct: rear,
+    stockVerified: Boolean(front?.stockVerified && rear?.stockVerified),
+    availableStock,
+    purchasable,
+    unpurchasableReason,
+  };
+}
+
+/**
+ * Loads all active combos from Supabase and populates underlying product relationships.
+ */
+export async function getStorefrontCombos(): Promise<TyreCombo[]> {
+  if (!isSupabaseConfigured()) {
+    return fallbackCombos;
+  }
+
+  try {
+    // 1. Fetch live products to resolve component tyre details and stock
+    const products = await getStorefrontProducts();
+    const productsMap = new Map<string, TyreProduct>();
+    products.forEach((p) => {
+      productsMap.set(String(p.id), p);
+      if (p.supabaseId) productsMap.set(p.supabaseId, p);
+    });
+
+    // 2. Fetch active combos from Supabase
+    const { data, error } = await supabase
+      .from("combos")
+      .select("*")
+      .eq("active", true)
+      .order("combo_price", { ascending: true });
+
+    if (error) {
+      console.warn("[productService] Error fetching combos from Supabase:", error.message);
+      return fallbackCombos;
+    }
+
+    if (!data || data.length === 0) {
+      return fallbackCombos;
+    }
+
+    return (data as DbCombo[]).map((c) => mapDbComboToCombo(c, productsMap));
+  } catch (err) {
+    console.warn("[productService] Unexpected error loading combos:", err);
+    return fallbackCombos;
+  }
+}
+
+/**
+ * Subscribes to Supabase Realtime changes on public.combos.
+ */
+export function subscribeToCombosRealtime(
+  onComboChanged: (payload: { eventType: string; new: DbCombo | null; old: Partial<DbCombo> | null }) => void
+): () => void {
+  if (!isSupabaseConfigured()) {
+    return () => {};
+  }
+
+  const channelName = `combos-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+  const channel = supabase
+    .channel(channelName)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "combos",
+      },
+      (payload) => {
+        onComboChanged({
+          eventType: payload.eventType,
+          new: (payload.new as DbCombo) || null,
+          old: (payload.old as Partial<DbCombo>) || null,
+        });
+      }
+    )
+    .subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        console.log(`[productService] Realtime subscribed to public.combos (${channelName})`);
+      }
+    });
+
+  return () => {
+    supabase.removeChannel(channel).catch(() => {});
+  };
+}
+
+/**
+ * Loads accessories from Supabase.
+ * Returns empty array when table has no records (displaying empty state as required).
+ */
+export async function getStorefrontAccessories(): Promise<AccessoryItem[]> {
+  if (!isSupabaseConfigured()) {
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("accessories")
+      .select("*")
+      .eq("active", true)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.warn("[productService] Error fetching accessories:", error.message);
+      return [];
+    }
+
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    return (data as DbAccessory[]).map((a) => ({
+      id: a.id,
+      title: a.name,
+      subtitle: a.description || "",
+      category: a.category || "Accessories",
+      price: Number(a.price),
+      tagColor: "bg-primary",
+      stockQuantity: a.stock_quantity,
+      active: a.active,
+    }));
+  } catch (err) {
+    console.warn("[productService] Unexpected error loading accessories:", err);
+    return [];
+  }
+}
+
+/**
  * Validates real-time product stock for an array of items before allowing checkout.
+ * Checks both individual tyres and combo bundle component tyres.
  * Returns array of error messages if any item exceeds currently available stock.
  */
 export async function validateCartStock(
-  items: { productId?: string; quantity: number; title: string }[]
+  items: {
+    productId?: string;
+    comboId?: string;
+    frontProductId?: string;
+    rearProductId?: string;
+    quantity: number;
+    title: string;
+  }[]
 ): Promise<{ valid: boolean; errors: string[] }> {
   if (!isSupabaseConfigured()) {
     return { valid: true, errors: [] };
   }
 
-  const productIds = items
-    .map((it) => it.productId)
-    .filter((id): id is string => Boolean(id));
+  // Aggregate required quantities per physical product UUID
+  const productDemands = new Map<string, { quantity: number; titles: Set<string> }>();
 
+  for (const item of items) {
+    if (item.productId) {
+      const cur = productDemands.get(item.productId) || { quantity: 0, titles: new Set<string>() };
+      cur.quantity += item.quantity;
+      cur.titles.add(item.title);
+      productDemands.set(item.productId, cur);
+    } else if (item.frontProductId && item.rearProductId) {
+      // Combo requires 1 front tyre and 1 rear tyre per combo unit
+      const curFront = productDemands.get(item.frontProductId) || { quantity: 0, titles: new Set<string>() };
+      curFront.quantity += item.quantity;
+      curFront.titles.add(`${item.title} (Front Component)`);
+      productDemands.set(item.frontProductId, curFront);
+
+      const curRear = productDemands.get(item.rearProductId) || { quantity: 0, titles: new Set<string>() };
+      curRear.quantity += item.quantity;
+      curRear.titles.add(`${item.title} (Rear Component)`);
+      productDemands.set(item.rearProductId, curRear);
+    }
+  }
+
+  const productIds = Array.from(productDemands.keys());
   if (productIds.length === 0) {
     return { valid: true, errors: [] };
   }
 
   const { data, error } = await supabase
     .from("products")
-    .select("id, name, stock_quantity, stock_verified, active")
+    .select("id, name, width, profile, rim, stock_quantity, stock_verified, active")
     .in("id", productIds);
 
   if (error || !data) {
@@ -433,26 +669,31 @@ export async function validateCartStock(
   const errors: string[] = [];
   const productMap = new Map(data.map((p) => [p.id, p]));
 
-  for (const item of items) {
-    if (!item.productId) continue;
-    const p = productMap.get(item.productId);
-    if (!p) continue;
+  for (const [pId, demand] of productDemands.entries()) {
+    const p = productMap.get(pId);
+    const label = Array.from(demand.titles).join(" / ");
 
-    if (!p.active) {
-      errors.push(`"${item.title}" is no longer available.`);
+    if (!p) {
+      errors.push(`Product for "${label}" was not found in database.`);
       continue;
     }
 
-    if (!p.stock_verified) {
-      errors.push(`Stock for "${item.title}" has not yet been verified. Please contact Costa via WhatsApp to order.`);
+    if (!p.active) {
+      errors.push(`"${p.name}" (${label}) is currently inactive or discontinued.`);
+      continue;
+    }
+
+    const isVerified = Boolean(p.stock_verified || (p.stock_quantity !== null && p.stock_quantity !== undefined));
+    if (!isVerified) {
+      errors.push(`Stock for "${p.name}" (${p.width}/${p.profile} R${p.rim}) has not been verified yet. Please contact Costa via WhatsApp to confirm Selby availability.`);
       continue;
     }
 
     const available = p.stock_quantity ?? 0;
     if (available <= 0) {
-      errors.push(`"${item.title}" is currently OUT OF STOCK.`);
-    } else if (item.quantity > available) {
-      errors.push(`Only ${available} unit${available === 1 ? "" : "s"} of "${item.title}" currently available in stock (you have ${item.quantity} in cart).`);
+      errors.push(`"${p.name}" (${p.width}/${p.profile} R${p.rim}) is currently OUT OF STOCK.`);
+    } else if (demand.quantity > available) {
+      errors.push(`Only ${available} unit${available === 1 ? "" : "s"} of "${p.name} (${p.width}/${p.profile} R${p.rim})" available (your order requires ${demand.quantity}).`);
     }
   }
 

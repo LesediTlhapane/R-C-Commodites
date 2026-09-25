@@ -2,18 +2,23 @@ import { useState, useEffect, useRef } from "react";
 import { Phone, Search, ShoppingBag, Menu, X, ArrowRight } from "lucide-react";
 import logoAsset from "../assets/rc-logo.png";
 import vredesteinLogoAsset from "../assets/vredestein-logo.png";
-import { tyreProducts, tyreCombos } from "../data/products";
+import { tyreProducts as fallbackProducts, tyreCombos as fallbackCombos } from "../data/products";
+import type { TyreProduct, TyreCombo } from "../types";
 
 interface HeaderProps {
   totalCartCount: number;
   onOpenCart: () => void;
   onScrollTo: (id: string) => void;
+  products?: TyreProduct[];
+  combos?: TyreCombo[];
 }
 
 export function Header({
   totalCartCount,
   onOpenCart,
   onScrollTo,
+  products = fallbackProducts,
+  combos = fallbackCombos,
 }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -58,9 +63,9 @@ export function Header({
     setSearchOpen(false);
   };
 
-  // Quick search matching results
+  // Quick search matching results from live Supabase data
   const searchResults = searchQuery.trim()
-    ? tyreProducts.filter((product) => {
+    ? products.filter((product) => {
         const query = searchQuery.toLowerCase();
         return (
           product.name.toLowerCase().includes(query) ||
@@ -73,7 +78,7 @@ export function Header({
     : [];
 
   const comboResults = searchQuery.trim()
-    ? tyreCombos.filter((combo) => {
+    ? combos.filter((combo) => {
         const query = searchQuery.toLowerCase();
         return (
           combo.title.toLowerCase().includes(query) ||

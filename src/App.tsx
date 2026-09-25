@@ -14,16 +14,25 @@ import { Footer } from "./components/Footer";
 import { CartDrawer } from "./components/CartDrawer";
 import { MobileQuickBar } from "./components/MobileQuickBar";
 
-import { tyreProducts as fallbackProducts, tyreCombos, accessoryCategories } from "./data/products";
+import { tyreProducts as fallbackProducts, tyreCombos as fallbackCombos } from "./data/products";
 import type { CartItem, Range, TyreProduct, TyreCombo, AccessoryItem } from "./types";
 import backgroundAsset from "./assets/background.png";
 import { resolveAsset } from "./lib/assetHelper";
 import { useRouter } from "./lib/router";
 import { AdminRoutes } from "./components/admin/AdminRoutes";
-import { getStorefrontProducts, subscribeToProductsRealtime, mapDbProductToTyre } from "./lib/productService";
+import {
+  getStorefrontProducts,
+  subscribeToProductsRealtime,
+  mapDbProductToTyre,
+  getStorefrontCombos,
+  subscribeToCombosRealtime,
+  getStorefrontAccessories,
+} from "./lib/productService";
 
 export default function App() {
   const [products, setProducts] = useState<TyreProduct[]>(fallbackProducts);
+  const [combos, setCombos] = useState<TyreCombo[]>(fallbackCombos);
+  const [accessories, setAccessories] = useState<AccessoryItem[]>([]);
   const [range, setRange] = useState<Range>("All");
   const [selectedSize, setSelectedSize] = useState("All sizes");
   const [selectedPosition, setSelectedPosition] = useState("All");
@@ -37,9 +46,11 @@ export default function App() {
   const [finderWidth, setFinderWidth] = useState("All");
   const [finderProfile, setFinderProfile] = useState("All");
 
-  // 1. Fetch live products from Supabase on mount
+  // 1. Fetch live products, combos, and accessories from Supabase on mount
   useEffect(() => {
     let isMounted = true;
+
+    // Load products
     getStorefrontProducts()
       .then((data) => {
         if (isMounted && data.length > 0) {
@@ -48,8 +59,26 @@ export default function App() {
       })
       .catch((err) => console.warn("[App] Error loading products:", err));
 
+    // Load combos from Supabase
+    getStorefrontCombos()
+      .then((data) => {
+        if (isMounted && data.length > 0) {
+          setCombos(data);
+        }
+      })
+      .catch((err) => console.warn("[App] Error loading combos:", err));
+
+    // Load accessories from Supabase (empty table = graceful empty state)
+    getStorefrontAccessories()
+      .then((data) => {
+        if (isMounted) {
+          setAccessories(data);
+        }
+      })
+      .catch((err) => console.warn("[App] Error loading accessories:", err));
+
     // 2. Realtime listener for product stock, price, or details updates
-    const unsubscribe = subscribeToProductsRealtime((payload) => {
+    const unsubscribeProducts = subscribeToProductsRealtime((payload) => {
       console.log("[App] Realtime event on products:", payload.eventType);
       if (payload.eventType === "INSERT" && payload.new) {
         const mapped = mapDbProductToTyre(payload.new);
@@ -60,10 +89,30 @@ export default function App() {
       } else if (payload.eventType === "DELETE" && payload.old?.id) {
         setProducts((prev) => prev.filter((p) => String(p.id) !== String(payload.old?.id)));
       }
+
+      // Also refresh combos when product stock changes so combo validation remains strictly up to date
+      getStorefrontCombos()
+        .then((data) => {
+          if (isMounted && data.length > 0) {
+            setCombos(data);
+          }
+        })
+        .catch(() => {});
     });
 
-    // 3. Fallback sync on window focus and periodic refresh (every 45s)
-    const refreshProducts = () => {
+    // 3. Realtime listener for combos updates
+    const unsubscribeCombos = subscribeToCombosRealtime(() => {
+      getStorefrontCombos()
+        .then((data) => {
+          if (isMounted && data.length > 0) {
+            setCombos(data);
+          }
+        })
+        .catch(() => {});
+    });
+
+    // 4. Fallback sync on window focus and periodic refresh (every 45s)
+    const refreshData = () => {
       getStorefrontProducts()
         .then((data) => {
           if (isMounted && data.length > 0) {
@@ -71,16 +120,33 @@ export default function App() {
           }
         })
         .catch(() => {});
+
+      getStorefrontCombos()
+        .then((data) => {
+          if (isMounted && data.length > 0) {
+            setCombos(data);
+          }
+        })
+        .catch(() => {});
+
+      getStorefrontAccessories()
+        .then((data) => {
+          if (isMounted) {
+            setAccessories(data);
+          }
+        })
+        .catch(() => {});
     };
 
-    const intervalId = window.setInterval(refreshProducts, 45000);
-    window.addEventListener("focus", refreshProducts);
+    const intervalId = window.setInterval(refreshData, 45000);
+    window.addEventListener("focus", refreshData);
 
     return () => {
       isMounted = false;
       window.clearInterval(intervalId);
-      window.removeEventListener("focus", refreshProducts);
-      unsubscribe();
+      window.removeEventListener("focus", refreshData);
+      unsubscribeProducts();
+      unsubscribeCombos();
     };
   }, []);
 
@@ -165,10 +231,21 @@ export default function App() {
   };
 
   const addComboToCart = (combo: TyreCombo) => {
+    // Dual product stock validation
+    if (!combo.purchasable) {
+      showToast(combo.unpurchasableReason || "Combo is not available for direct purchase.");
+      return;
+    }
+
+    const available = combo.availableStock ?? 1;
     const itemId = `combo-${combo.id}`;
     setCartItems((prev) => {
       const existing = prev.find((item) => item.id === itemId);
       if (existing) {
+        if (existing.quantity >= available) {
+          showToast(`Only ${available} combo set(s) available based on component tyre inventory.`);
+          return prev;
+        }
         return prev.map((item) =>
           item.id === itemId ? { ...item, quantity: item.quantity + 1 } : item
         );
@@ -182,7 +259,10 @@ export default function App() {
           price: combo.price,
           quantity: 1,
           comboId: combo.id,
-          stockVerified: true,
+          frontProductId: combo.frontProductId,
+          rearProductId: combo.rearProductId,
+          maxStock: available,
+          stockVerified: combo.stockVerified,
         },
       ];
     });
@@ -304,6 +384,8 @@ export default function App() {
         totalCartCount={totalCartCount}
         onOpenCart={() => setIsCartOpen(true)}
         onScrollTo={scrollTo}
+        products={products}
+        combos={combos}
       />
 
       {/* Main Body */}
@@ -335,7 +417,7 @@ export default function App() {
 
         {/* 4. Combos Deals Section */}
         <CombosSection
-          combos={tyreCombos}
+          combos={combos}
           onAddCombo={addComboToCart}
         />
 
@@ -364,7 +446,7 @@ export default function App() {
 
         {/* 7. Accessories Section */}
         <AccessoriesSection
-          accessories={accessoryCategories}
+          accessories={accessories}
           onAddAccessory={addAccessoryToCart}
         />
 

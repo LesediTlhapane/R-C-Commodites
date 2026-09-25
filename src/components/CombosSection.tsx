@@ -1,4 +1,4 @@
-import { Flame, Tag, ShoppingBag, Phone, ShieldCheck, Check } from "lucide-react";
+import { Flame, Tag, ShoppingBag, Phone, ShieldCheck, Check, AlertCircle } from "lucide-react";
 import { motion } from "motion/react";
 import type { TyreCombo } from "../types";
 import tyre2Asset from "../assets/tyre2.jpg";
@@ -97,9 +97,24 @@ export function CombosSection({ combos, onAddCombo }: CombosSectionProps) {
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/15 border border-amber-400/40 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-amber-300">
                       <Tag size={12} /> {combo.tag}
                     </span>
-                    <span className="rounded bg-primary/20 border border-primary/40 px-2 py-0.5 text-[10px] font-bold text-primary uppercase">
-                      Matched Pair
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="rounded bg-primary/20 border border-primary/40 px-2 py-0.5 text-[10px] font-bold text-primary uppercase">
+                        Matched Pair
+                      </span>
+                      {combo.purchasable ? (
+                        <span className="rounded bg-emerald-950/80 border border-emerald-800/80 px-2 py-0.5 text-[10px] font-bold text-emerald-400 uppercase">
+                          IN STOCK {combo.availableStock ? `(${combo.availableStock})` : ""}
+                        </span>
+                      ) : combo.unpurchasableReason?.includes("Stock Not Verified") ? (
+                        <span className="rounded bg-amber-950/80 border border-amber-800/80 px-2 py-0.5 text-[10px] font-bold text-amber-400 uppercase">
+                          STOCK NOT VERIFIED
+                        </span>
+                      ) : (
+                        <span className="rounded bg-neutral-850 border border-neutral-700 px-2 py-0.5 text-[10px] font-bold text-neutral-400 uppercase">
+                          OUT OF STOCK
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Title & Subtitle */}
@@ -182,24 +197,49 @@ export function CombosSection({ combos, onAddCombo }: CombosSectionProps) {
                     </div>
                   </div>
 
+                  {/* Stock Availability notice if not purchasable */}
+                  {!combo.purchasable && (
+                    <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-950/40 p-2.5 flex items-center gap-2 text-xs text-amber-300">
+                      <AlertCircle size={15} className="shrink-0 text-amber-400" />
+                      <span>{combo.unpurchasableReason || "Component tyre stock awaiting verification"}</span>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <motion.button
-                      whileHover={{ scale: 1.03, transition: { duration: 0.15, ease: PERFORMANCE_EASE } }}
-                      whileTap={{ scale: 0.96, transition: { duration: 0.1, ease: TACTILE_EASE } }}
-                      onClick={() => onAddCombo(combo)}
-                      className="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 text-xs font-black uppercase tracking-wider text-white hover:bg-primary-hover transition-all shadow-md cursor-pointer"
-                    >
-                      <ShoppingBag size={15} /> Add Combo Set
-                    </motion.button>
+                    {combo.purchasable ? (
+                      <motion.button
+                        whileHover={{ scale: 1.03, transition: { duration: 0.15, ease: PERFORMANCE_EASE } }}
+                        whileTap={{ scale: 0.96, transition: { duration: 0.1, ease: TACTILE_EASE } }}
+                        onClick={() => onAddCombo(combo)}
+                        className="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 text-xs font-black uppercase tracking-wider text-white hover:bg-primary-hover transition-all shadow-md cursor-pointer"
+                      >
+                        <ShoppingBag size={15} /> Add Combo Set
+                      </motion.button>
+                    ) : (
+                      <button
+                        disabled
+                        aria-disabled="true"
+                        title={combo.unpurchasableReason || "Unavailable"}
+                        className="flex items-center justify-center gap-2 rounded-md bg-neutral-800 border border-neutral-700/80 px-4 py-3 text-xs font-bold uppercase tracking-wider text-neutral-500 cursor-not-allowed opacity-60"
+                      >
+                        <ShoppingBag size={15} /> {combo.unpurchasableReason?.includes("Stock Not Verified") ? "Unverified Stock" : "Out of Stock"}
+                      </button>
+                    )}
+
                     <motion.a
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.97 }}
                       href={`https://wa.me/27832273237?text=${waMessage}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 rounded-md border border-neutral-700 bg-neutral-800 px-3 py-3 text-xs font-bold uppercase tracking-wider text-white hover:bg-neutral-700 transition-colors cursor-pointer"
+                      className={`flex items-center justify-center gap-2 rounded-md px-3 py-3 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer ${
+                        !combo.purchasable
+                          ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-md font-black"
+                          : "border border-neutral-700 bg-neutral-800 text-white hover:bg-neutral-700"
+                      }`}
                     >
-                      <Phone size={14} className="text-emerald-400" /> WhatsApp
+                      <Phone size={14} className={!combo.purchasable ? "text-white" : "text-emerald-400"} />
+                      {!combo.purchasable ? "Enquire via WhatsApp" : "WhatsApp"}
                     </motion.a>
                   </div>
                 </div>
