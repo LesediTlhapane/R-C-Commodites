@@ -1,8 +1,14 @@
 import { createClient } from "@supabase/supabase-js";
 
-// Read Supabase environment variables from Vite
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+// Read Supabase environment variables from Vite, with production fallback defaults
+const DEFAULT_SUPABASE_URL = "https://rbcmjltpokzgkxitoljo.supabase.co";
+const DEFAULT_SUPABASE_ANON_KEY = "sb_publishable_siAm5B-hzfdAnBwDkwsBzg_5Lbp7vrZ";
+
+const rawUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim();
+const rawKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)?.trim();
+
+const supabaseUrl = rawUrl && !rawUrl.includes("your-project-id") ? rawUrl : DEFAULT_SUPABASE_URL;
+const supabaseAnonKey = rawKey && !rawKey.includes("your-anon-key") ? rawKey : DEFAULT_SUPABASE_ANON_KEY;
 
 /**
  * Validates whether Supabase environment variables are defined and not placeholders.
@@ -11,8 +17,7 @@ export const isSupabaseConfigured = (): boolean => {
   return (
     Boolean(supabaseUrl) &&
     Boolean(supabaseAnonKey) &&
-    supabaseUrl !== "https://your-project-id.supabase.co" &&
-    supabaseAnonKey !== "your-anon-key-here" &&
+    supabaseUrl !== "https://placeholder.supabase.co" &&
     supabaseUrl.startsWith("http")
   );
 };
@@ -28,8 +33,8 @@ if (!isSupabaseConfigured()) {
  * Uses ONLY the public anon key - never the service-role key.
  */
 export const supabase = createClient(
-  supabaseUrl || "https://placeholder.supabase.co",
-  supabaseAnonKey || "placeholder-anon-key",
+  supabaseUrl,
+  supabaseAnonKey,
   {
     auth: {
       persistSession: true,

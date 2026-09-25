@@ -12,6 +12,19 @@ interface AdminGuardProps {
 export function AdminGuard({ children }: AdminGuardProps) {
   const { user, isAdmin, isLoading, isConfigured, signOut, checkAdminRole } = useAdminAuth();
   const { navigate } = useRouter();
+  const [loadSlow, setLoadSlow] = React.useState(false);
+
+  // If loading takes longer than 3 seconds, show fallback buttons so the user is never trapped
+  useEffect(() => {
+    if (!isLoading) {
+      setLoadSlow(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setLoadSlow(true);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [isLoading]);
 
   // If not authenticated and not loading, redirect to /admin/login
   useEffect(() => {
@@ -37,8 +50,28 @@ export function AdminGuard({ children }: AdminGuardProps) {
           <span>Verifying administrator authorization...</span>
         </div>
         <p className="text-neutral-500 text-xs mt-2 font-mono">
-          Querying Supabase Role-Based Access Control (RLS)
+          Connecting to Supabase Role-Based Access Control
         </p>
+
+        {loadSlow && (
+          <div className="mt-6 flex flex-col items-center gap-3 animate-fade-in">
+            <span className="text-neutral-400 text-xs">Verification taking longer than usual?</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => navigate("/admin/login", { replace: true })}
+                className="px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-xs text-white border border-neutral-700 transition cursor-pointer"
+              >
+                Go to Admin Login
+              </button>
+              <button
+                onClick={() => navigate("/")}
+                className="px-3 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-xs text-neutral-400 hover:text-white border border-neutral-800 transition cursor-pointer"
+              >
+                Back to Storefront
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -102,7 +135,7 @@ ON CONFLICT (user_id, role) DO NOTHING;`}
 
           <div className="mt-6 flex flex-col sm:flex-row gap-3">
             <button
-              onClick={() => checkAdminRole(user.id)}
+              onClick={() => checkAdminRole(user.id, user.email)}
               className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-primary-dark transition-all cursor-pointer"
             >
               <RefreshCw size={14} />

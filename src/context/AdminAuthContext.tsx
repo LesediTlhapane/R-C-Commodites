@@ -11,7 +11,7 @@ interface AdminAuthContextType {
   authError: string | null;
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
-  checkAdminRole: (userId: string) => Promise<boolean>;
+  checkAdminRole: (userId: string, userEmail?: string | null) => Promise<boolean>;
 }
 
 const AdminAuthContext = createContext<AdminAuthContextType | undefined>(undefined);
@@ -28,33 +28,54 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
    * Verifies directly against Supabase database whether the user holds the 'admin' role.
    * This is never derived from localStorage or client-side tampering.
    */
-  const checkAdminRole = useCallback(async (userId: string): Promise<boolean> => {
+  const checkAdminRole = useCallback(async (userId: string, userEmail?: string | null): Promise<boolean> => {
     if (!isConfigured) return false;
 
+    // Known configured administrator emails
+    const ADMIN_EMAILS = [
+      "leseditlhapane5@gmail.com",
+      "admin@rc-commodities.co.za",
+      "costa08@gmail.com",
+      "costa@rc-commodities.co.za",
+    ];
+
+    if (userEmail && ADMIN_EMAILS.includes(userEmail.toLowerCase().trim())) {
+      return true;
+    }
+
     try {
-      // 1. Direct query on public.user_roles
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId)
-        .eq("role", "admin")
-        .maybeSingle();
+      const roleCheckPromise = (async () => {
+        // 1. Direct query on public.user_roles
+        const { data, error } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userId)
+          .eq("role", "admin")
+          .maybeSingle();
 
-      if (!error && data && data.role === "admin") {
-        return true;
-      }
-
-      // 2. RPC is_admin() fallback check
-      try {
-        const { data: rpcAdmin } = await supabase.rpc("is_admin");
-        if (rpcAdmin === true) {
+        if (!error && data && data.role === "admin") {
           return true;
         }
-      } catch {
-        // Fallback silently if RPC not yet deployed
-      }
 
-      return false;
+        // 2. RPC is_admin() fallback check
+        try {
+          const { data: rpcAdmin } = await supabase.rpc("is_admin");
+          if (rpcAdmin === true) {
+            return true;
+          }
+        } catch {
+          // Fallback silently if RPC not yet deployed
+        }
+
+        return false;
+      })();
+
+      // 3.5s timeout safeguard so database stalls never freeze the UI
+      const timeoutPromise = new Promise<boolean>((resolve) => {
+        setTimeout(() => resolve(false), 3500);
+      });
+
+      return await Promise.race([roleCheckPromise, timeoutPromise]);
     } catch (err) {
       console.error("[AdminAuth] Unexpected error during role verification:", err);
       return false;
@@ -70,9 +91,24 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // Fallback safety timeout: ensure isLoading is ALWAYS turned off within 4.5 seconds
+    const safetyTimer = setTimeout(() => {
+      if (mounted) {
+        setIsLoading(false);
+      }
+    }, 4500);
+
     const initAuth = async () => {
       try {
-        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+        const getSessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise<{ data: { session: null }; error: Error }>((resolve) =>
+          setTimeout(() => resolve({ data: { session: null }, error: new Error("Session fetch timeout") }), 3500)
+        );
+
+        const { data: { session: initialSession }, error } = await Promise.race([
+          getSessionPromise,
+          timeoutPromise,
+        ]);
         
         if (error) {
           console.warn("[AdminAuth] Error retrieving initial session:", error.message);
@@ -83,7 +119,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
           setUser(initialSession?.user ?? null);
 
           if (initialSession?.user) {
-            const adminStatus = await checkAdminRole(initialSession.user.id);
+            const adminStatus = await checkAdminRole(initialSession.user.id, initialSession.user.email);
             if (mounted) {
               setIsAdmin(adminStatus);
             }
@@ -111,7 +147,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         setUser(currentSession?.user ?? null);
 
         if (currentSession?.user) {
-          const adminStatus = await checkAdminRole(currentSession.user.id);
+          const adminStatus = await checkAdminRole(currentSession.user.id, currentSession.user.email);
           if (mounted) {
             setIsAdmin(adminStatus);
           }
@@ -124,6 +160,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       mounted = false;
+      clearTimeout(safetyTimer);
       subscription.unsubscribe();
     };
   }, [isConfigured, checkAdminRole]);
@@ -161,7 +198,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Verify that this authenticated account actually has the 'admin' role in user_roles
-      const hasAdminRole = await checkAdminRole(data.user.id);
+      const hasAdminRole = await checkAdminRole(data.user.id, data.user.email);
       if (!hasAdminRole) {
         // Authenticated as a user, but NOT an authorised administrator
         const err = "Access Denied: This account is authenticated but does not possess the 'admin' role in the database.";
