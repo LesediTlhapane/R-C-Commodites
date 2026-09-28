@@ -1,6 +1,7 @@
 import { supabase, isSupabaseConfigured } from "./supabase";
 import type { CartItem, DbOrder, DbCustomer, DbOrderItem } from "../types";
 import { validateCartStock } from "./productService";
+import type { PaymentMethod, PaymentStatus } from "./paymentService";
 
 export interface CreateOrderParams {
   customer: {
@@ -13,6 +14,9 @@ export interface CreateOrderParams {
   deliveryMethod: "collection" | "courier";
   shippingAddress?: string;
   notes?: string;
+  paymentMethod?: PaymentMethod;
+  paymentReference?: string;
+  paymentStatus?: PaymentStatus;
 }
 
 export interface CreateOrderResult {
@@ -22,6 +26,9 @@ export interface CreateOrderResult {
   total: number;
   subtotal: number;
   savedToDatabase: boolean;
+  paymentMethod?: PaymentMethod;
+  paymentReference?: string;
+  paymentStatus?: PaymentStatus;
   error?: string;
   dbNotice?: string;
 }
@@ -38,17 +45,26 @@ export function generateOrderNumber(): string {
 
 /**
  * Places a customer order:
- * 1. Performs authoritative real-time stock validation for all items
+ * 1. Performs authoritative real-time stock validation for all items (tyres & accessories)
  * 2. Creates customer record in Supabase
- * 3. Creates order record in Supabase
+ * 3. Creates order record in Supabase with payment reference
  * 4. Creates line items in Supabase
  * 5. Handles RLS gracefully with fallback order bundle
  */
 export async function createOrder(params: CreateOrderParams): Promise<CreateOrderResult> {
-  const { customer, items, deliveryMethod, shippingAddress, notes } = params;
+  const {
+    customer,
+    items,
+    deliveryMethod,
+    shippingAddress,
+    notes,
+    paymentMethod = "eft",
+    paymentReference,
+    paymentStatus = "unpaid",
+  } = params;
 
   if (items.length === 0) {
-    throw new Error("Your cart is empty. Please add tyres or combos to place an order.");
+    throw new Error("Your cart is empty. Please add tyres, combos or accessories to place an order.");
   }
 
   // 1. Authoritative real-time stock validation
@@ -60,6 +76,7 @@ export async function createOrder(params: CreateOrderParams): Promise<CreateOrde
   const subtotal = items.reduce((sum, it) => sum + it.price * it.quantity, 0);
   const total = subtotal; // Selby collection is free; courier is arranged on delivery
   const orderNumber = generateOrderNumber();
+  const resolvedPaymentReference = paymentReference || orderNumber;
   const orderId = crypto.randomUUID();
   const customerId = crypto.randomUUID();
 
@@ -71,6 +88,9 @@ export async function createOrder(params: CreateOrderParams): Promise<CreateOrde
       subtotal,
       total,
       savedToDatabase: false,
+      paymentMethod,
+      paymentReference: resolvedPaymentReference,
+      paymentStatus,
       dbNotice: "Running in local preview mode without database.",
     };
   }
@@ -92,6 +112,12 @@ export async function createOrder(params: CreateOrderParams): Promise<CreateOrde
       console.warn("[orderService] Note on customer insert:", custErr.message);
     }
 
+    // Combine delivery method and address if courier
+    const fullDeliveryInfo =
+      deliveryMethod === "courier" && shippingAddress
+        ? `courier (${shippingAddress})`
+        : deliveryMethod;
+
     // 3. Insert order
     const { error: orderErr } = await supabase.from("orders").insert({
       id: orderId,
@@ -100,8 +126,9 @@ export async function createOrder(params: CreateOrderParams): Promise<CreateOrde
       status: "pending",
       subtotal,
       total,
-      payment_status: "unpaid",
-      delivery_method: deliveryMethod,
+      payment_status: paymentStatus,
+      delivery_method: fullDeliveryInfo,
+      payment_reference: resolvedPaymentReference,
     });
 
     if (orderErr) {
@@ -137,6 +164,9 @@ export async function createOrder(params: CreateOrderParams): Promise<CreateOrde
     subtotal,
     total,
     savedToDatabase,
+    paymentMethod,
+    paymentReference: resolvedPaymentReference,
+    paymentStatus,
     dbNotice,
   };
 }

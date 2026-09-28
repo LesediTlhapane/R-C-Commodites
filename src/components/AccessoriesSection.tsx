@@ -1,4 +1,4 @@
-import { ExternalLink, ShoppingBag } from "lucide-react";
+import { ExternalLink, ShoppingBag, Wrench } from "lucide-react";
 import type { AccessoryItem } from "../types";
 import moodyBikeAsset from "../assets/4298f1d6724ee05cbb8ca427a0471e9c.jpg";
 import { resolveAsset } from "../lib/assetHelper";
@@ -85,36 +85,83 @@ export function AccessoriesSection({ accessories, onAddAccessory }: AccessoriesS
             {accessories.map((item) => (
               <div
                 key={item.id}
-                className="flex flex-col justify-between rounded-2xl border border-neutral-800/90 bg-neutral-900/85 backdrop-blur-xs p-5 shadow-lg transition-all hover:border-primary hover:shadow-2xl hover:-translate-y-0.5"
+                className="flex flex-col justify-between overflow-hidden rounded-2xl border border-neutral-800/90 bg-neutral-900/85 backdrop-blur-xs shadow-lg transition-all hover:border-primary hover:shadow-2xl hover:-translate-y-0.5 group"
               >
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <span className={`h-1.5 w-10 rounded-full ${item.tagColor}`} />
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">
-                      {item.category}
-                    </span>
+                {/* Accessory Image Banner if uploaded/available */}
+                {item.image ? (
+                  <div className="relative h-44 w-full overflow-hidden bg-neutral-950 border-b border-neutral-800/80">
+                    <img
+                      src={item.image}
+                      alt={item.title}
+                      className="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/80 via-transparent to-transparent pointer-events-none" />
+                    <div className="absolute top-3 left-3">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-neutral-950/80 backdrop-blur-xs border border-neutral-700/80 text-neutral-300">
+                        {item.category}
+                      </span>
+                    </div>
                   </div>
-                  <h3 className="font-display text-base uppercase leading-snug text-white">
-                    {item.title}
-                  </h3>
-                  <p className="mt-2 text-xs text-neutral-300 leading-relaxed">
-                    {item.subtitle}
-                  </p>
-                </div>
+                ) : null}
 
-                <div className="mt-6 pt-4 border-t border-neutral-800 flex items-center justify-between">
+                <div className="p-5 flex-1 flex flex-col justify-between">
+                  <div>
+                    {!item.image && (
+                      <div className="flex items-center justify-between mb-4">
+                        <span className={`h-1.5 w-10 rounded-full ${item.tagColor}`} />
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">
+                          {item.category}
+                        </span>
+                      </div>
+                    )}
+                    <h3 className="font-display text-base uppercase leading-snug text-white">
+                      {item.title}
+                    </h3>
+                    {item.subtitle && (
+                      <p className="mt-2 text-xs text-neutral-300 leading-relaxed line-clamp-3">
+                        {item.subtitle}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="mt-6 pt-4 border-t border-neutral-800 flex items-center justify-between">
                   <div>
                     <span className="font-display text-base text-primary font-bold block">
                       R{item.price.toLocaleString("en-ZA")}.00
                     </span>
-                    <span className="text-[10px] text-amber-400 font-medium">Available</span>
+                    {item.stockQuantity === null || item.stockQuantity === undefined ? (
+                      <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">
+                        Stock Not Verified
+                      </span>
+                    ) : item.stockQuantity === 0 ? (
+                      <span className="text-[10px] text-red-400 font-bold uppercase tracking-wider">
+                        Out of Stock
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">
+                        In Stock ({item.stockQuantity})
+                      </span>
+                    )}
                   </div>
-                  <button
-                    onClick={() => onAddAccessory(item)}
-                    className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-primary-hover transition-colors active:scale-95 cursor-pointer shadow-xs"
-                  >
-                    <ShoppingBag size={13} /> Add
-                  </button>
+                  {item.stockQuantity !== null && item.stockQuantity !== undefined && item.stockQuantity > 0 ? (
+                    <button
+                      onClick={() => onAddAccessory(item)}
+                      className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-primary-hover transition-colors active:scale-95 cursor-pointer shadow-xs"
+                    >
+                      <ShoppingBag size={13} /> Add
+                    </button>
+                  ) : (
+                    <a
+                      href="https://wa.me/27832273237?text=Hi%20Costa,%20please%20verify%20stock%20for%20accessory:%20"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 rounded-md border border-neutral-700 bg-neutral-800/80 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-300 hover:text-white hover:border-neutral-600 transition"
+                    >
+                      Enquire
+                    </a>
+                  )}
+                  </div>
                 </div>
               </div>
             ))}

@@ -4,8 +4,9 @@ import { AdminLogin } from "./AdminLogin";
 import { AdminGuard } from "./AdminGuard";
 import { AdminLayout } from "./AdminLayout";
 import { AdminDashboard } from "./AdminDashboard";
-import { AdminPlaceholder } from "./AdminPlaceholder";
 import { AdminProducts } from "./AdminProducts";
+import { AdminCombos } from "./AdminCombos";
+import { AdminAccessories } from "./AdminAccessories";
 import { AdminOrders } from "./AdminOrders";
 
 export function AdminRoutes() {
@@ -24,8 +25,11 @@ export function AdminRoutes() {
     content = <AdminProducts />;
     activePath = "/admin/products";
   } else if (pathname === "/admin/combos") {
-    content = <AdminPlaceholder module="combos" />;
+    content = <AdminCombos />;
     activePath = "/admin/combos";
+  } else if (pathname === "/admin/accessories") {
+    content = <AdminAccessories />;
+    activePath = "/admin/accessories";
   } else if (pathname === "/admin/inventory") {
     // Inventory routes directly to product & stock management
     content = <AdminProducts />;

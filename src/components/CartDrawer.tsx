@@ -23,6 +23,12 @@ import {
 import type { CartItem } from "../types";
 import { validateCartStock } from "../lib/productService";
 import { createOrder, type CreateOrderResult } from "../lib/orderService";
+import {
+  getAvailablePaymentMethods,
+  initializeOrderPayment,
+  type PaymentMethod,
+  type PaymentInitResult,
+} from "../lib/paymentService";
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -58,6 +64,7 @@ export function CartDrawer({
     email: "",
     phone: "",
     deliveryMethod: "collection" as "collection" | "courier",
+    paymentMethod: "eft" as PaymentMethod,
     streetAddress: "",
     city: "Johannesburg",
     postalCode: "",
@@ -76,7 +83,7 @@ export function CartDrawer({
       (item) => `• ${item.quantity}x ${item.title} (${item.subtitle}) - R${(item.price * item.quantity).toLocaleString("en-ZA")}.00`
     );
     const prefix = orderNum
-      ? `Hi Costa (R&C Commodities),\n\nI have placed Order #${orderNum} on the website:\n\n${lines.join("\n")}\n\nTotal: R${total.toLocaleString("en-ZA")}.00\nCustomer: ${formData.firstName} ${formData.lastName}\nPhone: ${formData.phone}\nDelivery: ${formData.deliveryMethod === "courier" ? `Courier to ${formData.streetAddress}, ${formData.city}` : "Collection at Selby Workshop"}\n\nPlease confirm availability and banking/EFT payment.`
+      ? `Hi Costa (R&C Commodities),\n\nI have placed Order #${orderNum} on the website:\n\n${lines.join("\n")}\n\nTotal: R${total.toLocaleString("en-ZA")}.00\nCustomer: ${formData.firstName} ${formData.lastName}\nPhone: ${formData.phone}\nPayment Method: ${formData.paymentMethod === "card_paystack" ? "Credit/Debit Card" : "Direct Bank EFT"}\nDelivery: ${formData.deliveryMethod === "courier" ? `Courier to ${formData.streetAddress}, ${formData.city}` : "Collection at Selby Workshop"}\n\nPlease confirm availability and banking/EFT payment.`
       : `Hi Costa (R&C Commodities),\n\nI would like to order the following motorcycle tyres/combos:\n\n${lines.join("\n")}\n\nTotal: R${total.toLocaleString("en-ZA")}.00\n\nPlease confirm availability and fitment/delivery in Selby, Johannesburg.`;
     return `https://wa.me/27832273237?text=${encodeURIComponent(prefix)}`;
   };
@@ -122,6 +129,23 @@ export function CartDrawer({
     setSubmittingOrder(true);
 
     try {
+      // 1. Authoritative payment initialization via payment service abstraction
+      const tempOrderRef = `RC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const paymentInit = await initializeOrderPayment(formData.paymentMethod, {
+        orderNumber: tempOrderRef,
+        amount: total,
+        customerEmail: formData.email,
+        customerPhone: formData.phone,
+        customerName: `${formData.firstName} ${formData.lastName}`.trim(),
+        deliveryMethod: formData.deliveryMethod,
+      });
+
+      if (!paymentInit.success && paymentInit.error) {
+        setFormError(paymentInit.error);
+        setSubmittingOrder(false);
+        return;
+      }
+
       const shippingAddress =
         formData.deliveryMethod === "courier"
           ? `${formData.streetAddress}, ${formData.city} ${formData.postalCode}`.trim()
@@ -138,6 +162,9 @@ export function CartDrawer({
         deliveryMethod: formData.deliveryMethod,
         shippingAddress,
         notes: formData.notes,
+        paymentMethod: formData.paymentMethod,
+        paymentReference: paymentInit.paymentReference,
+        paymentStatus: paymentInit.paymentStatus,
       });
 
       setOrderResult(res);
@@ -568,10 +595,84 @@ export function CartDrawer({
                   )}
                 </div>
 
+                {/* 3. Payment Method */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-foreground-muted flex items-center gap-1.5">
+                      <span>3. Payment Method</span>
+                    </h3>
+                    <span className="text-[10px] text-primary font-bold uppercase">South Africa (ZAR)</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2">
+                    <label
+                      className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
+                        formData.paymentMethod === "eft"
+                          ? "border-primary bg-primary/10 shadow-xs"
+                          : "border-border bg-surface-soft hover:border-neutral-400"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value="eft"
+                        checked={formData.paymentMethod === "eft"}
+                        onChange={() => setFormData({ ...formData, paymentMethod: "eft" })}
+                        className="mt-1 accent-primary"
+                      />
+                      <div className="flex-1">
+                        <div className="text-xs font-bold text-foreground uppercase flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <Building size={13} className="text-primary" />
+                            <span>Direct Bank EFT (Standard Bank)</span>
+                          </div>
+                          <span className="text-[9px] bg-primary/20 text-primary border border-primary/30 px-1.5 py-0.5 rounded font-bold uppercase">
+                            Preferred
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-foreground-muted mt-0.5 leading-snug">
+                          Pay directly to R&amp;C Commodities Selby account. Official banking details and order reference provided immediately upon placement.
+                        </p>
+                      </div>
+                    </label>
+
+                    <label
+                      className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
+                        formData.paymentMethod === "card_paystack"
+                          ? "border-primary bg-primary/10 shadow-xs"
+                          : "border-border bg-surface-soft hover:border-neutral-400"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value="card_paystack"
+                        checked={formData.paymentMethod === "card_paystack"}
+                        onChange={() => setFormData({ ...formData, paymentMethod: "card_paystack" })}
+                        className="mt-1 accent-primary"
+                      />
+                      <div className="flex-1">
+                        <div className="text-xs font-bold text-foreground uppercase flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <CreditCard size={13} className="text-primary" />
+                            <span>Online Card Payment (Visa / Mastercard)</span>
+                          </div>
+                          <span className="text-[9px] bg-neutral-800 text-neutral-400 px-1.5 py-0.5 rounded font-mono">
+                            3D Secure
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-foreground-muted mt-0.5 leading-snug">
+                          Pay online via debit or credit card. Ready for automated gateway processing.
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
                 {/* Motorcycle & Fitment Notes */}
                 <div className="space-y-2 pt-2">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-foreground-muted">
-                    3. Motorcycle Model / Fitment Notes (Optional)
+                    4. Motorcycle Model / Fitment Notes (Optional)
                   </h3>
                   <textarea
                     rows={2}
@@ -641,6 +742,19 @@ export function CartDrawer({
               {/* Fulfilment & Contact Summary */}
               <div className="rounded-xl border border-border bg-surface-soft p-4 space-y-2 text-xs">
                 <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                  <span className="text-foreground-muted font-bold uppercase text-[10px]">Payment Method</span>
+                  <span className="font-semibold text-foreground">
+                    {orderResult.paymentMethod === "card_paystack" ? "Credit / Debit Card" : "Direct Bank EFT"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                  <span className="text-foreground-muted font-bold uppercase text-[10px]">Payment Status</span>
+                  <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase font-bold text-amber-400">
+                    <span className="size-1.5 rounded-full bg-amber-400" />
+                    <span>{orderResult.paymentStatus || "Unpaid / Pending Proof"}</span>
+                  </span>
+                </div>
+                <div className="flex items-center justify-between pb-2 border-b border-border/60">
                   <span className="text-foreground-muted font-bold uppercase text-[10px]">Fulfilment</span>
                   <span className="font-semibold text-foreground">
                     {formData.deliveryMethod === "courier" ? "Nationwide Courier" : "Workshop Collection"}
@@ -663,7 +777,7 @@ export function CartDrawer({
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
                     <Building size={14} className="text-primary" />
-                    <span>EFT Payment Details</span>
+                    <span>Official EFT Banking Details</span>
                   </span>
                   <button
                     onClick={copyBankDetails}
@@ -679,8 +793,11 @@ export function CartDrawer({
                   <div><strong>Account:</strong> R&amp;C Commodities (Pty) Ltd</div>
                   <div><strong>Account No:</strong> 022849102</div>
                   <div><strong>Branch Code:</strong> 051001 (Selby)</div>
-                  <div><strong>Reference:</strong> <span className="text-primary font-bold">{orderResult.orderNumber}</span></div>
+                  <div><strong>Payment Reference:</strong> <span className="text-primary font-bold">{orderResult.orderNumber}</span></div>
                 </div>
+                <p className="text-[10px] text-foreground-muted leading-tight">
+                  Please use your Order Number <strong className="text-primary font-mono">{orderResult.orderNumber}</strong> as the beneficiary reference for rapid matching.
+                </p>
               </div>
 
               {/* Direct WhatsApp Confirmation Button */}

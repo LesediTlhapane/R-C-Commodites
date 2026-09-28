@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   UserCheck,
   ChevronRight,
+  Wrench,
 } from "lucide-react";
 import { useAdminAuth } from "../../context/AdminAuthContext";
 import { useRouter } from "../../lib/router";
@@ -28,6 +29,7 @@ const navItems = [
   { name: "Dashboard", path: "/admin", icon: LayoutDashboard },
   { name: "Products", path: "/admin/products", icon: Package },
   { name: "Combos", path: "/admin/combos", icon: Layers },
+  { name: "Accessories", path: "/admin/accessories", icon: Wrench },
   { name: "Inventory", path: "/admin/inventory", icon: Boxes },
   { name: "Orders", path: "/admin/orders", icon: ShoppingCart },
 ];

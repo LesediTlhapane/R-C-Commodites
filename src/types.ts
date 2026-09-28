@@ -150,6 +150,8 @@ export interface AccessoryItem {
   category: string;
   price: number;
   tagColor: string;
+  image?: string | null;
+  imageUrl?: string | null;
   stockQuantity?: number | null;
   active?: boolean;
 }
@@ -163,6 +165,7 @@ export interface CartItem {
   image?: string;
   productId?: string; // original Supabase product id if tyre
   comboId?: string; // combo id if combo
+  accessoryId?: string; // accessory id if accessory
   frontProductId?: string; // for combos
   rearProductId?: string; // for combos
   maxStock?: number | null; // available stock limit

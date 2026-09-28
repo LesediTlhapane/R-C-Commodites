@@ -27,6 +27,7 @@ import {
   getStorefrontCombos,
   subscribeToCombosRealtime,
   getStorefrontAccessories,
+  subscribeToAccessoriesRealtime,
 } from "./lib/productService";
 
 export default function App() {
@@ -111,7 +112,18 @@ export default function App() {
         .catch(() => {});
     });
 
-    // 4. Fallback sync on window focus and periodic refresh (every 45s)
+    // 4. Realtime listener for accessories updates
+    const unsubscribeAccessories = subscribeToAccessoriesRealtime(() => {
+      getStorefrontAccessories()
+        .then((data) => {
+          if (isMounted) {
+            setAccessories(data);
+          }
+        })
+        .catch(() => {});
+    });
+
+    // 5. Fallback sync on window focus and periodic refresh (every 45s)
     const refreshData = () => {
       getStorefrontProducts()
         .then((data) => {
@@ -147,6 +159,7 @@ export default function App() {
       window.removeEventListener("focus", refreshData);
       unsubscribeProducts();
       unsubscribeCombos();
+      unsubscribeAccessories();
     };
   }, []);
 
@@ -270,10 +283,27 @@ export default function App() {
   };
 
   const addAccessoryToCart = (item: AccessoryItem) => {
+    // 1. Authoritative check: unverified accessories cannot be purchased directly
+    const isVerified = item.stockQuantity !== null && item.stockQuantity !== undefined;
+    if (!isVerified) {
+      showToast(`Stock for "${item.title}" is not verified yet. Please enquire via WhatsApp.`);
+      return;
+    }
+
+    const available = item.stockQuantity ?? 0;
+    if (available <= 0) {
+      showToast(`"${item.title}" is currently OUT OF STOCK.`);
+      return;
+    }
+
     const itemId = `acc-${item.id}`;
     setCartItems((prev) => {
       const existing = prev.find((it) => it.id === itemId);
       if (existing) {
+        if (existing.quantity >= available) {
+          showToast(`Only ${available} unit${available === 1 ? "" : "s"} of "${item.title}" in stock.`);
+          return prev;
+        }
         return prev.map((it) =>
           it.id === itemId ? { ...it, quantity: it.quantity + 1 } : it
         );
@@ -282,10 +312,14 @@ export default function App() {
         ...prev,
         {
           id: itemId,
+          accessoryId: item.id,
           title: item.title,
           subtitle: item.category,
           price: item.price,
           quantity: 1,
+          image: item.image || item.imageUrl || undefined,
+          maxStock: available,
+          stockVerified: true,
         },
       ];
     });
