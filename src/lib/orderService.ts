@@ -2,6 +2,7 @@ import { supabase, isSupabaseConfigured } from "./supabase";
 import type { CartItem, DbOrder, DbCustomer, DbOrderItem } from "../types";
 import { validateCartStock } from "./productService";
 import type { PaymentMethod, PaymentStatus } from "./paymentService";
+import { generateUuid } from "./uuid";
 
 export interface CreateOrderParams {
   customer: {
@@ -77,8 +78,8 @@ export async function createOrder(params: CreateOrderParams): Promise<CreateOrde
   const total = subtotal; // Selby collection is free; courier is arranged on delivery
   const orderNumber = generateOrderNumber();
   const resolvedPaymentReference = paymentReference || orderNumber;
-  const orderId = crypto.randomUUID();
-  const customerId = crypto.randomUUID();
+  const orderId = generateUuid();
+  const customerId = generateUuid();
 
   if (!isSupabaseConfigured()) {
     return {
@@ -137,7 +138,7 @@ export async function createOrder(params: CreateOrderParams): Promise<CreateOrde
     } else {
       // 4. Insert order items
       const orderItemsRows = items.map((item) => ({
-        id: crypto.randomUUID(),
+        id: generateUuid(),
         order_id: orderId,
         product_id: item.productId || null,
         product_name: `${item.title}${item.subtitle ? ` (${item.subtitle})` : ""}`,

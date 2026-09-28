@@ -2,6 +2,7 @@ import { supabase, isSupabaseConfigured } from "./supabase";
 import type { DbProduct, TyreProduct, TyreCombo, InventoryHistoryItem, DbCombo, DbAccessory, AccessoryItem } from "../types";
 import { tyreProducts as fallbackProducts, tyreCombos as fallbackCombos } from "../data/products";
 import { getTyreProfileImage } from "./assetHelper";
+import { generateUuid } from "./uuid";
 
 /**
  * Maps a database product row to the frontend TyreProduct model.
@@ -815,7 +816,7 @@ export async function getAdminAccessories(): Promise<DbAccessory[]> {
 
 /**
  * Creates a new accessory.
- * Guarantees storage locally and attempts cloud replication to Supabase.
+ * Persists locally when Supabase is unavailable and surfaces failed cloud writes.
  */
 export async function createAccessory(
   accessory: {
@@ -828,7 +829,7 @@ export async function createAccessory(
     active?: boolean;
   }
 ): Promise<DbAccessory> {
-  const generatedId = crypto.randomUUID();
+  const generatedId = generateUuid();
   const now = new Date().toISOString();
 
   const newRecord: DbAccessory = {
@@ -849,7 +850,7 @@ export async function createAccessory(
 
   let savedRecord: DbAccessory = newRecord;
 
-  // Attempt Supabase insert if configured
+  // Do not report a local-only save as successful when the cloud write fails.
   if (isSupabaseConfigured()) {
     try {
       const { data, error } = await supabase
@@ -866,26 +867,33 @@ export async function createAccessory(
         }])
         .select();
 
-      if (!error && data && data.length > 0) {
-        savedRecord = data[0] as DbAccessory;
-        if (savedRecord.stock_quantity !== null && savedRecord.stock_quantity > 0) {
-          try {
-            await supabase.from("inventory_history").insert([
-              {
-                accessory_id: savedRecord.id,
-                change_type: "restock",
-                quantity_change: savedRecord.stock_quantity,
-                quantity_after: savedRecord.stock_quantity,
-                notes: `Initial stock set to ${savedRecord.stock_quantity}`,
-              },
-            ]);
-          } catch {}
+      if (error) {
+        const details = error.details ? ` Details: ${error.details}` : error.hint ? ` Hint: ${error.hint}` : "";
+        throw new Error(`Failed to save accessory to Supabase (${error.code}): ${error.message}.${details}`);
+      }
+
+      if (!data || data.length === 0) {
+        throw new Error("Supabase did not return the saved accessory. Check the accessories table SELECT policy.");
+      }
+
+      savedRecord = data[0] as DbAccessory;
+      if (savedRecord.stock_quantity !== null && savedRecord.stock_quantity > 0) {
+        const { error: historyError } = await supabase.from("inventory_history").insert([
+          {
+            accessory_id: savedRecord.id,
+            change_type: "restock",
+            quantity_change: savedRecord.stock_quantity,
+            quantity_after: savedRecord.stock_quantity,
+            notes: `Initial stock set to ${savedRecord.stock_quantity}`,
+          },
+        ]);
+        if (historyError) {
+          console.warn("[productService] Failed to record initial accessory inventory history:", historyError.message);
         }
-      } else if (error) {
-        console.warn("[productService] Supabase insert warning (persisting locally):", error.message);
       }
     } catch (dbErr) {
-      console.warn("[productService] Supabase accessory write failed, persisting to local store:", dbErr);
+      if (dbErr instanceof Error) throw dbErr;
+      throw new Error(`Failed to save accessory to Supabase: ${String(dbErr)}`);
     }
   }
 
@@ -896,7 +904,7 @@ export async function createAccessory(
   // Record initial inventory history
   if (savedRecord.stock_quantity !== null && savedRecord.stock_quantity > 0) {
     appendLocalHistory({
-      id: crypto.randomUUID(),
+      id: generateUuid(),
       accessory_id: savedRecord.id,
       change_type: "restock",
       quantity_change: savedRecord.stock_quantity,
@@ -1012,7 +1020,7 @@ export async function updateAccessory(
     }
 
     appendLocalHistory({
-      id: crypto.randomUUID(),
+      id: generateUuid(),
       accessory_id: id,
       change_type: "manual_adjustment",
       quantity_change: diff,
