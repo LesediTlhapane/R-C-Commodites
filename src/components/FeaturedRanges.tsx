@@ -1,8 +1,8 @@
 import { ArrowRight, ShieldCheck, Zap, Compass } from "lucide-react";
 import { motion } from "motion/react";
 import type { Range } from "../types";
-import nsAsset from "../assets/NS.png";
-import stAsset from "../assets/ST.jpeg";
+import nsAsset from "../assets/centauroNS.jpg";
+import stAsset from "../assets/centauroST.png";
 import { PERFORMANCE_EASE, TACTILE_EASE } from "../lib/motionTokens";
 
 interface FeaturedRangesProps {

@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { Phone, Search, ShoppingBag, Menu, X, ArrowRight } from "lucide-react";
+import { Phone, Search, ShoppingBag, Menu, X, ArrowRight, ShieldCheck } from "lucide-react";
 import logoAsset from "../assets/rc-logo.png";
 import vredesteinLogoAsset from "../assets/vredestein-logo.png";
 import { tyreProducts as fallbackProducts, tyreCombos as fallbackCombos } from "../data/products";
 import type { TyreProduct, TyreCombo } from "../types";
+import { useAdminAuth } from "../context/AdminAuthContext";
+import { useRouter } from "../lib/router";
 
 interface HeaderProps {
   totalCartCount: number;
@@ -20,6 +22,8 @@ export function Header({
   products = fallbackProducts,
   combos = fallbackCombos,
 }: HeaderProps) {
+  const { isAdmin } = useAdminAuth();
+  const { navigate } = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -101,8 +105,19 @@ export function Header({
             <span className="text-neutral-400">Workshop &amp; Fitment Available</span>
           </div>
 
-          {/* Right: WhatsApp & Optional Phone */}
+          {/* Right: WhatsApp, Phone & Admin Jump */}
           <div className="flex items-center gap-4 text-neutral-300">
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => navigate("/admin")}
+                className="inline-flex items-center gap-1.5 rounded-full bg-primary/20 border border-primary/40 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary hover:bg-primary hover:text-white transition cursor-pointer"
+                title="Return to Admin Workspace"
+              >
+                <ShieldCheck size={12} />
+                <span>Admin Portal</span>
+              </button>
+            )}
             <a
               href="https://wa.me/27832273237?text=Hi%20Costa,%20I%20have%20an%20enquiry%20regarding%20Vredestein%20motorcycle%20tyres"
               target="_blank"

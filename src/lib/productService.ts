@@ -1038,12 +1038,35 @@ export async function updateAccessory(
  */
 export async function deleteAccessory(id: string): Promise<void> {
   if (isSupabaseConfigured()) {
+    // 1. Delete associated inventory history records first if any
     try {
-      await supabase.from("accessories").delete().eq("id", id);
-    } catch (e) {
-      console.warn("[productService] Remote delete note:", e);
+      await supabase.from("inventory_history").delete().eq("accessory_id", id);
+    } catch (invErr) {
+      console.warn("[productService] Delete inventory history notice:", invErr);
+    }
+
+    // 2. Perform delete on accessories with select to verify affected rows
+    const { data, error } = await supabase
+      .from("accessories")
+      .delete()
+      .eq("id", id)
+      .select();
+
+    if (error) {
+      throw new Error(`Failed to delete accessory from database: ${error.message}`);
+    }
+
+    // Check if RLS blocked the deletion
+    if (!data || data.length === 0) {
+      const { data: authUser } = await supabase.auth.getUser();
+      if (!authUser?.user) {
+        throw new Error("Permission denied: You must be authenticated as an administrator to delete accessories.");
+      }
+      console.warn("[productService] Delete returned 0 rows for accessory:", id);
     }
   }
+
+  // 3. Remove from local storage cache and notify real-time listeners
   const locals = getLocalAccessories().filter((a) => a.id !== id);
   saveLocalAccessories(locals);
 }
@@ -1276,4 +1299,118 @@ export async function updateCombo(
  */
 export async function deactivateCombo(id: string): Promise<DbCombo> {
   return updateCombo(id, { active: false });
+}
+
+/**
+ * Updates combo availability by adjusting the component front and rear product stock in Supabase.
+ * Preserves the project architecture where combo availability is derived from component products,
+ * guarantees stock consistency, prevents negative stock, logs inventory history, and dispatches updates.
+ */
+export async function updateComboStock(
+  comboId: string,
+  targetSets: number,
+  options?: {
+    frontStock?: number;
+    rearStock?: number;
+  }
+): Promise<{
+  combo: DbCombo;
+  frontProduct: DbProduct;
+  rearProduct: DbProduct;
+  availableSets: number;
+}> {
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured.");
+  }
+
+  if (targetSets < 0 || !Number.isInteger(targetSets)) {
+    throw new Error("Target combo stock quantity must be a non-negative integer.");
+  }
+
+  // 1. Fetch the combo to get component product IDs
+  const { data: comboData, error: comboErr } = await supabase
+    .from("combos")
+    .select("*")
+    .eq("id", comboId)
+    .single();
+
+  if (comboErr || !comboData) {
+    throw new Error(`Combo not found: ${comboErr?.message || comboId}`);
+  }
+
+  const combo = comboData as DbCombo;
+
+  // 2. Fetch current component products
+  const { data: prods, error: prodsErr } = await supabase
+    .from("products")
+    .select("*")
+    .in("id", [combo.front_product_id, combo.rear_product_id]);
+
+  if (prodsErr || !prods) {
+    throw new Error(`Failed to fetch component tyres: ${prodsErr?.message || "Not found"}`);
+  }
+
+  const frontCurrent = prods.find((p) => p.id === combo.front_product_id) as DbProduct | undefined;
+  const rearCurrent = prods.find((p) => p.id === combo.rear_product_id) as DbProduct | undefined;
+
+  if (!frontCurrent || !rearCurrent) {
+    throw new Error("Component front or rear tyre product was not found in the database.");
+  }
+
+  // Determine new stock values for both tyres
+  let newFrontStock: number;
+  let newRearStock: number;
+
+  if (options?.frontStock !== undefined && options?.rearStock !== undefined) {
+    if (options.frontStock < 0 || !Number.isInteger(options.frontStock)) {
+      throw new Error("Front tyre stock must be a non-negative integer.");
+    }
+    if (options.rearStock < 0 || !Number.isInteger(options.rearStock)) {
+      throw new Error("Rear tyre stock must be a non-negative integer.");
+    }
+    newFrontStock = options.frontStock;
+    newRearStock = options.rearStock;
+  } else {
+    // Direct target sets: update component tyres to provide at least targetSets
+    newFrontStock = Math.max(0, targetSets);
+    newRearStock = Math.max(0, targetSets);
+  }
+
+  // Update front product in Supabase (will record inventory_history)
+  const updatedFront = await updateProduct(
+    frontCurrent.id,
+    {
+      stock_quantity: newFrontStock,
+      stock_verified: true,
+    },
+    frontCurrent.stock_quantity
+  );
+
+  // Update rear product in Supabase (will record inventory_history)
+  const updatedRear = await updateProduct(
+    rearCurrent.id,
+    {
+      stock_quantity: newRearStock,
+      stock_verified: true,
+    },
+    rearCurrent.stock_quantity
+  );
+
+  const availableSets = Math.min(updatedFront.stock_quantity ?? 0, updatedRear.stock_quantity ?? 0);
+
+  // Dispatch custom combo updated event so UI and storefront sync immediately
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("rc-combos-updated", {
+        detail: { comboId, availableSets, frontStock: newFrontStock, rearStock: newRearStock },
+      })
+    );
+  }
+
+  return {
+    combo,
+    frontProduct: updatedFront,
+    rearProduct: updatedRear,
+    availableSets,
+  };
 }

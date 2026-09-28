@@ -22,7 +22,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
     }
     const timer = setTimeout(() => {
       setLoadSlow(true);
-    }, 3000);
+    }, 4500);
     return () => clearTimeout(timer);
   }, [isLoading]);
 

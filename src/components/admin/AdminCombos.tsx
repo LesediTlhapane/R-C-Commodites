@@ -24,6 +24,7 @@ import {
   getAdminCombos,
   createCombo,
   updateCombo,
+  updateComboStock,
   deactivateCombo,
   getAdminProducts,
   subscribeToCombosRealtime,
@@ -47,6 +48,14 @@ export function AdminCombos() {
   // Modal / Form state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCombo, setEditingCombo] = useState<DbCombo | null>(null);
+
+  // Dedicated Stock Adjustment Modal state
+  const [stockAdjustCombo, setStockAdjustCombo] = useState<DbCombo | null>(null);
+  const [targetSetsInput, setTargetSetsInput] = useState<string>("0");
+  const [frontStockInput, setFrontStockInput] = useState<string>("0");
+  const [rearStockInput, setRearStockInput] = useState<string>("0");
+  const [stockModalError, setStockModalError] = useState<string | null>(null);
+  const [savingStock, setSavingStock] = useState<boolean>(false);
 
   // Form Fields
   const [formData, setFormData] = useState({
@@ -282,28 +291,93 @@ export function AdminCombos() {
     }
   };
 
+  // Open dedicated Stock Adjustment Modal
+  const handleOpenStockModal = (combo: DbCombo) => {
+    setStockAdjustCombo(combo);
+    setStockModalError(null);
+
+    const front = productsMap.get(combo.front_product_id);
+    const rear = productsMap.get(combo.rear_product_id);
+
+    const fStock = front?.stockQuantity !== null && front?.stockQuantity !== undefined ? front.stockQuantity : 0;
+    const rStock = rear?.stockQuantity !== null && rear?.stockQuantity !== undefined ? rear.stockQuantity : 0;
+    const available = Math.min(fStock, rStock);
+
+    setFrontStockInput(String(fStock));
+    setRearStockInput(String(rStock));
+    setTargetSetsInput(String(available));
+  };
+
+  // Save stock adjustment to Supabase
+  const handleSaveStockAdjustment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stockAdjustCombo) return;
+
+    const parsedSets = parseInt(targetSetsInput, 10);
+    const parsedFront = parseInt(frontStockInput, 10);
+    const parsedRear = parseInt(rearStockInput, 10);
+
+    if (isNaN(parsedSets) || parsedSets < 0) {
+      setStockModalError("Target combo sets must be a non-negative integer (0 or greater).");
+      return;
+    }
+    if (isNaN(parsedFront) || parsedFront < 0) {
+      setStockModalError("Front tyre stock must be a non-negative integer (0 or greater).");
+      return;
+    }
+    if (isNaN(parsedRear) || parsedRear < 0) {
+      setStockModalError("Rear tyre stock must be a non-negative integer (0 or greater).");
+      return;
+    }
+
+    setSavingStock(true);
+    setStockModalError(null);
+
+    try {
+      const res = await updateComboStock(stockAdjustCombo.id, parsedSets, {
+        frontStock: parsedFront,
+        rearStock: parsedRear,
+      });
+
+      // Update local products cache with new stock values
+      const updatedFrontTyre = mapDbProductToTyre(res.frontProduct);
+      const updatedRearTyre = mapDbProductToTyre(res.rearProduct);
+
+      setProducts((prev) =>
+        prev.map((p) => {
+          if (String(p.id) === String(updatedFrontTyre.id) || p.supabaseId === updatedFrontTyre.supabaseId) {
+            return updatedFrontTyre;
+          }
+          if (String(p.id) === String(updatedRearTyre.id) || p.supabaseId === updatedRearTyre.supabaseId) {
+            return updatedRearTyre;
+          }
+          return p;
+        })
+      );
+
+      showSuccess(
+        `Updated stock for "${stockAdjustCombo.name}": Front ${parsedFront}, Rear ${parsedRear} (${res.availableSets} available sets).`
+      );
+      setStockAdjustCombo(null);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to adjust combo stock.";
+      setStockModalError(msg);
+      setErrorMessage(msg);
+    } finally {
+      setSavingStock(false);
+    }
+  };
+
   // Toggle active / soft-delete
   const handleToggleActive = async (combo: DbCombo) => {
     const nextState = !combo.active;
     const action = nextState ? "activate" : "deactivate";
 
-    if (
-      !confirm(
-        `Are you sure you want to ${action} "${combo.name}"? ${
-          !nextState
-            ? "It will be hidden from customer storefront but preserved for historical order accuracy."
-            : "It will be restored to the storefront."
-        }`
-      )
-    ) {
-      return;
-    }
-
     try {
       const updated = await updateCombo(combo.id, { active: nextState });
       setCombos((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
       showSuccess(
-        `"${combo.name}" has been ${nextState ? "activated" : "deactivated (soft-deleted)"}.`
+        `"${combo.name}" has been ${nextState ? "activated" : "deactivated (hidden from store)"}.`
       );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : `Failed to ${action} combo.`;
@@ -653,20 +727,32 @@ export function AdminCombos() {
                         </div>
                       </td>
 
-                      {/* Availability */}
+                      {/* Availability & Stock */}
                       <td className="px-4 py-3.5">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${avail.badgeColor}`}
-                        >
-                          {avail.canPurchase ? (
-                            <CheckCircle2 size={11} />
-                          ) : avail.status.includes("Unverified") ? (
-                            <AlertTriangle size={11} />
-                          ) : (
-                            <XCircle size={11} />
-                          )}
-                          <span>{avail.status}</span>
-                        </span>
+                        <div className="space-y-1.5">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${avail.badgeColor}`}
+                          >
+                            {avail.canPurchase ? (
+                              <CheckCircle2 size={11} />
+                            ) : avail.status.includes("Unverified") ? (
+                              <AlertTriangle size={11} />
+                            ) : (
+                              <XCircle size={11} />
+                            )}
+                            <span>{avail.status}</span>
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={() => handleOpenStockModal(combo)}
+                            className="flex items-center gap-1 text-[10px] text-primary hover:text-primary-hover font-bold uppercase tracking-wider cursor-pointer transition hover:underline"
+                            title="Adjust front & rear component stock for this combo"
+                          >
+                            <Boxes size={11} />
+                            <span>Adjust Stock</span>
+                          </button>
+                        </div>
                       </td>
 
                       {/* Active Status */}
@@ -691,13 +777,22 @@ export function AdminCombos() {
 
                       {/* Actions */}
                       <td className="px-4 py-3.5 text-right">
-                        <button
-                          onClick={() => handleOpenEditModal(combo)}
-                          className="rounded-lg bg-neutral-800/80 hover:bg-neutral-700 p-1.5 text-neutral-300 hover:text-white transition cursor-pointer"
-                          title="Edit combo"
-                        >
-                          <Edit2 size={13} />
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => handleOpenStockModal(combo)}
+                            className="rounded-lg bg-neutral-800/80 hover:bg-primary/20 hover:text-primary p-1.5 text-neutral-300 transition cursor-pointer"
+                            title="Adjust combo stock"
+                          >
+                            <Boxes size={13} />
+                          </button>
+                          <button
+                            onClick={() => handleOpenEditModal(combo)}
+                            className="rounded-lg bg-neutral-800/80 hover:bg-neutral-700 p-1.5 text-neutral-300 hover:text-white transition cursor-pointer"
+                            title="Edit combo"
+                          >
+                            <Edit2 size={13} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -892,6 +987,191 @@ export function AdminCombos() {
                 >
                   {saving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
                   <span>{editingCombo ? "Save Combo" : "Create Combo"}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DEDICATED ADJUST COMBO STOCK MODAL */}
+      {stockAdjustCombo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-in fade-in">
+          <div className="w-full max-w-md rounded-2xl border border-neutral-800 bg-neutral-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
+              <div className="flex items-center gap-3">
+                <div className="size-10 rounded-xl bg-primary/20 border border-primary/40 flex items-center justify-center text-primary shrink-0">
+                  <Boxes size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white uppercase tracking-tight font-display">
+                    Adjust Combo Stock
+                  </h3>
+                  <p className="text-xs text-neutral-400 truncate max-w-[240px]">
+                    {stockAdjustCombo.name}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setStockAdjustCombo(null);
+                  setStockModalError(null);
+                }}
+                className="text-neutral-400 hover:text-white transition cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveStockAdjustment} className="space-y-4">
+              {stockModalError && (
+                <div className="rounded-xl border border-red-500/50 bg-red-950/80 p-3 text-xs text-red-200 flex items-start gap-2">
+                  <AlertTriangle size={15} className="text-red-400 shrink-0 mt-0.5" />
+                  <span>{stockModalError}</span>
+                </div>
+              )}
+
+              {/* Quick Target Sets */}
+              <div className="p-3.5 rounded-xl border border-neutral-800 bg-neutral-950/70">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-primary block mb-1">
+                  Target Available Sets
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    required
+                    value={targetSetsInput}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setTargetSetsInput(val);
+                      const parsed = parseInt(val, 10);
+                      if (!isNaN(parsed) && parsed >= 0) {
+                        setFrontStockInput(String(parsed));
+                        setRearStockInput(String(parsed));
+                      }
+                    }}
+                    className="w-28 rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-white font-mono font-bold focus:border-primary focus:outline-none"
+                  />
+                  <span className="text-xs text-neutral-400">
+                    Sets available to customers
+                  </span>
+                </div>
+              </div>
+
+              {/* Component Tyres Breakdown */}
+              <div className="space-y-3">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 block">
+                  Component Tyre Inventory
+                </span>
+
+                {/* Front Tyre */}
+                <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-bold uppercase text-neutral-400 block">
+                      Front Tyre
+                    </span>
+                    <strong className="text-xs font-semibold text-white truncate block">
+                      {productsMap.get(stockAdjustCombo.front_product_id)?.size || "Front Tyre"}
+                    </strong>
+                    <span className="text-[10px] text-neutral-500 block">
+                      {productsMap.get(stockAdjustCombo.front_product_id)?.name}
+                    </span>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <label className="text-[10px] text-neutral-400 block mb-0.5">Stock</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      required
+                      value={frontStockInput}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setFrontStockInput(val);
+                        const f = parseInt(val, 10);
+                        const r = parseInt(rearStockInput, 10);
+                        if (!isNaN(f) && !isNaN(r)) {
+                          setTargetSetsInput(String(Math.min(Math.max(0, f), Math.max(0, r))));
+                        }
+                      }}
+                      className="w-20 rounded-lg border border-neutral-700 bg-neutral-900 px-2.5 py-1.5 text-xs text-white font-mono font-bold text-center focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Rear Tyre */}
+                <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-bold uppercase text-neutral-400 block">
+                      Rear Tyre
+                    </span>
+                    <strong className="text-xs font-semibold text-white truncate block">
+                      {productsMap.get(stockAdjustCombo.rear_product_id)?.size || "Rear Tyre"}
+                    </strong>
+                    <span className="text-[10px] text-neutral-500 block">
+                      {productsMap.get(stockAdjustCombo.rear_product_id)?.name}
+                    </span>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <label className="text-[10px] text-neutral-400 block mb-0.5">Stock</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      required
+                      value={rearStockInput}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setRearStockInput(val);
+                        const f = parseInt(frontStockInput, 10);
+                        const r = parseInt(val, 10);
+                        if (!isNaN(f) && !isNaN(r)) {
+                          setTargetSetsInput(String(Math.min(Math.max(0, f), Math.max(0, r))));
+                        }
+                      }}
+                      className="w-20 rounded-lg border border-neutral-700 bg-neutral-900 px-2.5 py-1.5 text-xs text-white font-mono font-bold text-center focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Informational Notice */}
+              <p className="text-[11px] text-neutral-400 leading-relaxed bg-neutral-950/60 border border-neutral-800/80 p-2.5 rounded-lg">
+                ℹ️ Combo stock is derived from physical front &amp; rear tyre inventory. Saving updates the respective tyre stock in Supabase, logs inventory history, and keeps storefront inventory synchronized.
+              </p>
+
+              {/* Modal Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-2 border-t border-neutral-800">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStockAdjustCombo(null);
+                    setStockModalError(null);
+                  }}
+                  disabled={savingStock}
+                  className="px-4 py-2 rounded-xl border border-neutral-800 text-xs font-bold uppercase text-neutral-400 hover:text-white transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingStock}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold uppercase tracking-wider transition cursor-pointer disabled:opacity-50"
+                >
+                  {savingStock ? (
+                    <>
+                      <RefreshCw size={14} className="animate-spin" />
+                      <span>Updating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save size={14} />
+                      <span>Save &amp; Update Supabase</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>

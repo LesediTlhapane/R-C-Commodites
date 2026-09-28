@@ -62,6 +62,11 @@ export function AdminAccessories() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAccessory, setEditingAccessory] = useState<DbAccessory | null>(null);
 
+  // Delete Confirmation Modal state
+  const [itemToDelete, setItemToDelete] = useState<DbAccessory | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   // Form Fields
   const [formData, setFormData] = useState({
     name: "",
@@ -315,19 +320,29 @@ export function AdminAccessories() {
     }
   };
 
-  // Hard delete accessory
-  const handleDeleteAccessory = async (acc: DbAccessory) => {
-    if (!confirm(`Are you sure you want to permanently delete "${acc.name}" from the accessories catalogue?`)) {
-      return;
-    }
+  // Open Delete Confirmation Modal
+  const handleOpenDeleteModal = (acc: DbAccessory) => {
+    setItemToDelete(acc);
+    setDeleteError(null);
+  };
+
+  // Execute confirmed permanent deletion
+  const handleConfirmDelete = async () => {
+    if (!itemToDelete) return;
+    setIsDeleting(true);
+    setDeleteError(null);
 
     try {
-      await deleteAccessory(acc.id);
-      setAccessories((prev) => prev.filter((item) => item.id !== acc.id));
-      showSuccess(`"${acc.name}" has been permanently removed.`);
+      await deleteAccessory(itemToDelete.id);
+      setAccessories((prev) => prev.filter((item) => item.id !== itemToDelete.id));
+      showSuccess(`"${itemToDelete.name}" has been permanently removed.`);
+      setItemToDelete(null);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to delete accessory.";
+      setDeleteError(msg);
       setErrorMessage(msg);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -335,17 +350,6 @@ export function AdminAccessories() {
   const handleToggleActive = async (acc: DbAccessory) => {
     const nextState = !acc.active;
     const actionWord = nextState ? "activate" : "deactivate";
-    if (
-      !confirm(
-        `Are you sure you want to ${actionWord} "${acc.name}"? ${
-          !nextState
-            ? "It will be hidden from the customer storefront but preserved for historical orders."
-            : "It will be restored to the storefront if stock is verified."
-        }`
-      )
-    ) {
-      return;
-    }
 
     try {
       const updated = await updateAccessory(acc.id, { active: nextState });
@@ -353,7 +357,7 @@ export function AdminAccessories() {
         prev.map((item) => (item.id === updated.id ? updated : item))
       );
       showSuccess(
-        `"${acc.name}" has been ${nextState ? "activated" : "deactivated (soft-deleted)"}.`
+        `"${acc.name}" has been ${nextState ? "activated" : "deactivated (hidden from store)"}.`
       );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : `Failed to ${actionWord} accessory.`;
@@ -798,7 +802,7 @@ export function AdminAccessories() {
                             <Edit2 size={13} />
                           </button>
                           <button
-                            onClick={() => handleDeleteAccessory(acc)}
+                            onClick={() => handleOpenDeleteModal(acc)}
                             className="rounded-lg bg-neutral-800/80 hover:bg-red-950/80 p-1.5 text-neutral-400 hover:text-red-400 transition cursor-pointer"
                             title="Delete accessory"
                           >
@@ -1179,6 +1183,80 @@ export function AdminAccessories() {
                   </div>
                 ))
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {itemToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-in fade-in">
+          <div className="w-full max-w-md rounded-2xl border border-red-500/30 bg-neutral-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="size-12 rounded-xl bg-red-950/80 border border-red-800/80 flex items-center justify-center text-red-400 shrink-0">
+                <Trash2 size={24} />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white uppercase tracking-tight font-display">
+                  Delete Accessory
+                </h3>
+                <p className="text-xs text-neutral-400">
+                  Are you sure you want to permanently delete this item?
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-neutral-950 border border-neutral-800 p-3.5 space-y-1.5 text-xs">
+              <div className="font-semibold text-white text-sm">{itemToDelete.name}</div>
+              <div className="text-neutral-400 flex items-center gap-2">
+                <span>{itemToDelete.category}</span>
+                <span>•</span>
+                <span className="text-primary font-bold">R{itemToDelete.price.toLocaleString("en-ZA")}</span>
+                <span>•</span>
+                <span>Stock: {itemToDelete.stock_quantity ?? "Unverified"}</span>
+              </div>
+            </div>
+
+            <p className="text-xs text-amber-300/90 leading-relaxed bg-amber-950/30 border border-amber-800/40 p-2.5 rounded-lg">
+              ⚠️ This will remove the accessory from Supabase and the storefront catalogue. Past order history records will remain intact.
+            </p>
+
+            {deleteError && (
+              <div className="rounded-xl border border-red-500/50 bg-red-950/80 p-3 text-xs text-red-200">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setItemToDelete(null);
+                  setDeleteError(null);
+                }}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-xl border border-neutral-800 text-xs font-bold uppercase text-neutral-400 hover:text-white transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-wider transition cursor-pointer disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>
+                    <RefreshCw size={14} className="animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={14} />
+                    <span>Permanently Delete</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
