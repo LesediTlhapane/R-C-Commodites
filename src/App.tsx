@@ -10,6 +10,7 @@ import { PerformanceGallery } from "./components/PerformanceGallery";
 import { AccessoriesSection } from "./components/AccessoriesSection";
 import { WorkshopSection } from "./components/WorkshopSection";
 import { VredesteinHeritage } from "./components/VredesteinHeritage";
+import { FaqSection } from "./components/FaqSection";
 import { Footer } from "./components/Footer";
 import { CartDrawer } from "./components/CartDrawer";
 import { MobileQuickBar } from "./components/MobileQuickBar";
@@ -46,6 +47,24 @@ export default function App() {
   const [finderPosition, setFinderPosition] = useState("All");
   const [finderWidth, setFinderWidth] = useState("All");
   const [finderProfile, setFinderProfile] = useState("All");
+
+  // Payfast gateway return/cancel state
+  const [initialOrderNumber, setInitialOrderNumber] = useState<string | null>(null);
+  const [initialPaymentStatus, setInitialPaymentStatus] = useState<"return" | "cancelled" | null>(null);
+
+  // Check URL query parameters for Payfast return
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get("payment");
+    const orderNum = params.get("order");
+
+    if (orderNum && (payment === "return" || payment === "cancelled")) {
+      setInitialOrderNumber(orderNum);
+      setInitialPaymentStatus(payment);
+      setIsCartOpen(true);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   // 1. Fetch live products, combos, and accessories from Supabase on mount
   useEffect(() => {
@@ -406,11 +425,21 @@ export default function App() {
       {/* Cart Drawer */}
       <CartDrawer
         isOpen={isCartOpen}
-        onClose={() => setIsCartOpen(false)}
+        onClose={() => {
+          setIsCartOpen(false);
+          setInitialOrderNumber(null);
+          setInitialPaymentStatus(null);
+        }}
         items={cartItems}
         onUpdateQty={updateQuantity}
         onRemoveItem={removeItem}
         onClearCart={clearCart}
+        initialOrderNumber={initialOrderNumber}
+        initialPaymentStatus={initialPaymentStatus}
+        onClearInitialPayment={() => {
+          setInitialOrderNumber(null);
+          setInitialPaymentStatus(null);
+        }}
       />
 
       {/* Header Navigation */}
@@ -492,6 +521,9 @@ export default function App() {
           onScrollToCombos={() => scrollTo("combos")}
           onScrollToTyres={() => scrollTo("tyres")}
         />
+
+        {/* 10. Frequently Asked Questions Section */}
+        <FaqSection />
       </main>
 
       {/* Footer */}

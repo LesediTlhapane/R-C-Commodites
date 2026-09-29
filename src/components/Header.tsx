@@ -40,7 +40,7 @@ export function Header({
   // Track active section on scroll
   useEffect(() => {
     const handleScroll = () => {
-      const sections = ["finder", "tyres", "combos", "accessories", "workshop"];
+      const sections = ["finder", "tyres", "combos", "accessories", "workshop", "faq"];
       const scrollPos = window.scrollY + 200;
 
       for (const sectionId of sections) {
@@ -186,6 +186,7 @@ export function Header({
               { label: "Find Your Tyre", id: "finder" },
               { label: "Accessories", id: "accessories" },
               { label: "Workshop", id: "workshop" },
+              { label: "FAQ", id: "faq" },
             ].map((item) => {
               const isActive = activeNav === item.id;
               return (
@@ -349,6 +350,7 @@ export function Header({
               { label: "Find Your Tyre", id: "finder" },
               { label: "Accessories", id: "accessories" },
               { label: "Workshop", id: "workshop" },
+              { label: "FAQ", id: "faq" },
             ].map((item) => (
               <button
                 key={item.id}

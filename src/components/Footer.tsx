@@ -148,6 +148,13 @@ export function Footer() {
           <div className="flex flex-wrap items-center gap-3">
             <span>© 2026 R&amp;C Commodities. All rights reserved.</span>
             <span className="hidden sm:inline text-neutral-700">•</span>
+            <a
+              href="#faq"
+              className="text-neutral-400 hover:text-amber-400 transition-colors"
+            >
+              Frequently Asked Questions (FAQ)
+            </a>
+            <span className="hidden sm:inline text-neutral-700">•</span>
             <Link
               href="/admin"
               className="text-neutral-500 hover:text-neutral-300 transition-colors inline-flex items-center gap-1 font-mono text-[11px]"

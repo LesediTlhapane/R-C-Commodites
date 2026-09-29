@@ -99,8 +99,15 @@ export interface DbOrder {
   status: "pending" | "processing" | "dispatched" | "completed" | "cancelled";
   subtotal: number;
   total: number;
-  payment_status: "unpaid" | "paid" | "refunded";
+  payment_method?: string | null;
+  payment_status: "unpaid" | "pending" | "paid" | "refunded";
   delivery_method: string;
+  delivery_address?: string | null;
+  shipping_address?: string | null;
+  customer_name?: string | null;
+  customer_email?: string | null;
+  customer_phone?: string | null;
+  notes?: string | null;
   payment_reference?: string | null;
   created_at: string;
   updated_at: string;

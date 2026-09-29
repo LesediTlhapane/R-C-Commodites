@@ -21,7 +21,12 @@ import {
   MessageSquare,
   FileText,
 } from "lucide-react";
-import { getAdminOrders, updateOrderStatus, updateOrderPaymentStatus } from "../../lib/orderService";
+import {
+  getAdminOrders,
+  updateOrderStatus,
+  updateOrderPaymentStatus,
+  subscribeToOrdersRealtime,
+} from "../../lib/orderService";
 import type { DbOrder } from "../../types";
 
 const statusConfig: Record<
@@ -92,6 +97,10 @@ export function AdminOrders() {
 
   useEffect(() => {
     loadOrders();
+    const unsubscribe = subscribeToOrdersRealtime(() => {
+      loadOrders();
+    });
+    return () => unsubscribe();
   }, []);
 
   const openOrderDrawer = (order: DbOrder) => {
@@ -143,9 +152,9 @@ export function AdminOrders() {
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
       const numMatch = o.order_number.toLowerCase().includes(q);
-      const nameMatch = `${o.customer?.first_name || ""} ${o.customer?.last_name || ""}`.toLowerCase().includes(q);
-      const emailMatch = (o.customer?.email || "").toLowerCase().includes(q);
-      const phoneMatch = (o.customer?.phone || "").toLowerCase().includes(q);
+      const nameMatch = `${o.customer?.first_name || ""} ${o.customer?.last_name || ""} ${o.customer_name || ""}`.toLowerCase().includes(q);
+      const emailMatch = `${o.customer?.email || ""} ${o.customer_email || ""}`.toLowerCase().includes(q);
+      const phoneMatch = `${o.customer?.phone || ""} ${o.customer_phone || ""}`.toLowerCase().includes(q);
 
       return numMatch || nameMatch || emailMatch || phoneMatch;
     });
@@ -328,7 +337,11 @@ export function AdminOrders() {
                   const cfg = statusConfig[order.status] || statusConfig.pending;
                   const customerName = order.customer
                     ? `${order.customer.first_name} ${order.customer.last_name || ""}`.trim()
-                    : "Guest Buyer";
+                    : order.customer_name || "Store Customer";
+                  const customerPhone = order.customer?.phone || order.customer_phone || "";
+                  const deliveryLabel = order.delivery_method?.toLowerCase().includes("collection")
+                    ? "Selby Collection"
+                    : "Nationwide Delivery";
 
                   return (
                     <tr
@@ -350,12 +363,12 @@ export function AdminOrders() {
                       <td className="py-3.5 px-4">
                         <div className="font-semibold text-white">{customerName}</div>
                         <div className="text-[11px] text-neutral-400 font-mono">
-                          {order.customer?.phone || "No phone"}
+                          {customerPhone || "No phone"}
                         </div>
                       </td>
                       <td className="py-3.5 px-4">
                         <span className="inline-flex items-center gap-1 rounded bg-neutral-800 px-2 py-0.5 text-[10px] font-medium uppercase text-neutral-300">
-                          {order.delivery_method === "courier" ? "Nationwide Courier" : "Selby Collection"}
+                          {deliveryLabel}
                         </span>
                       </td>
                       <td className="py-3.5 px-4 text-neutral-300">
@@ -378,15 +391,31 @@ export function AdminOrders() {
                         </span>
                       </td>
                       <td className="py-3.5 px-4">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-bold uppercase ${
-                            order.payment_status === "paid"
-                              ? "bg-emerald-950/80 text-emerald-400 border border-emerald-800/80"
-                              : "bg-neutral-800 text-neutral-400"
-                          }`}
-                        >
-                          {order.payment_status}
-                        </span>
+                        <div className="flex flex-col gap-1 items-start">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-bold uppercase ${
+                              order.payment_status === "paid"
+                                ? "bg-emerald-950/80 text-emerald-400 border border-emerald-800/80"
+                                : order.payment_status === "pending"
+                                ? "bg-amber-950/80 text-amber-400 border border-amber-800/80"
+                                : "bg-neutral-800 text-neutral-400"
+                            }`}
+                          >
+                            <span className={`size-1.5 rounded-full ${
+                              order.payment_status === "paid"
+                                ? "bg-emerald-400"
+                                : order.payment_status === "pending"
+                                ? "bg-amber-400 animate-pulse"
+                                : "bg-neutral-500"
+                            }`} />
+                            <span>{order.payment_status}</span>
+                          </span>
+                          <span className="text-[10px] text-neutral-400 font-mono">
+                            {order.payment_method === "card_payfast"
+                              ? "Payfast Online"
+                              : "Direct EFT"}
+                          </span>
+                        </div>
                       </td>
                       <td className="py-3.5 px-4 text-right">
                         <button
@@ -461,53 +490,61 @@ export function AdminOrders() {
                     <span className="text-[10px] font-mono text-neutral-500">ID: {selectedOrder.customer_id?.substring(0, 8)}...</span>
                   </div>
 
-                  <div className="text-sm font-bold text-white">
-                    {selectedOrder.customer
+                  {(() => {
+                    const drawerCustomerName = selectedOrder.customer
                       ? `${selectedOrder.customer.first_name} ${selectedOrder.customer.last_name || ""}`.trim()
-                      : "Guest Customer"}
-                  </div>
+                      : selectedOrder.customer_name || "Store Customer";
+                    const drawerPhone = selectedOrder.customer?.phone || selectedOrder.customer_phone;
+                    const drawerEmail = selectedOrder.customer?.email || selectedOrder.customer_email;
+                    const drawerAddress =
+                      selectedOrder.delivery_address ||
+                      selectedOrder.shipping_address ||
+                      (selectedOrder.delivery_method?.includes("(") ? selectedOrder.delivery_method : null);
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                    {selectedOrder.customer?.phone && (
-                      <div className="flex items-center gap-2 text-neutral-300">
-                        <Phone size={13} className="text-primary" />
-                        <a
-                          href={`tel:${selectedOrder.customer.phone}`}
-                          className="hover:underline font-mono"
-                        >
-                          {selectedOrder.customer.phone}
-                        </a>
-                      </div>
-                    )}
-                    {selectedOrder.customer?.email && (
-                      <div className="flex items-center gap-2 text-neutral-300">
-                        <Mail size={13} className="text-primary" />
-                        <a
-                          href={`mailto:${selectedOrder.customer.email}`}
-                          className="hover:underline truncate"
-                        >
-                          {selectedOrder.customer.email}
-                        </a>
-                      </div>
-                    )}
-                  </div>
+                    return (
+                      <>
+                        <div className="text-sm font-bold text-white">
+                          {drawerCustomerName}
+                        </div>
 
-                  {/* Customer Quick WhatsApp Link */}
-                  {selectedOrder.customer?.phone && (
-                    <div className="pt-2">
-                      <a
-                        href={`https://wa.me/${selectedOrder.customer.phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
-                          `Hi ${selectedOrder.customer.first_name}, this is Costa from R&C Commodities regarding your tyre order ${selectedOrder.order_number}.`
-                        )}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-950/80 border border-emerald-800/80 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-emerald-400 hover:bg-emerald-900 transition-colors"
-                      >
-                        <MessageSquare size={13} />
-                        <span>WhatsApp Customer Directly</span>
-                      </a>
-                    </div>
-                  )}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                          {drawerPhone && (
+                            <div className="flex items-center gap-2 text-neutral-300">
+                              <Phone size={13} className="text-primary" />
+                              <a href={`tel:${drawerPhone}`} className="hover:underline font-mono">
+                                {drawerPhone}
+                              </a>
+                            </div>
+                          )}
+                          {drawerEmail && (
+                            <div className="flex items-center gap-2 text-neutral-300">
+                              <Mail size={13} className="text-primary" />
+                              <a href={`mailto:${drawerEmail}`} className="hover:underline truncate">
+                                {drawerEmail}
+                              </a>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Customer Quick WhatsApp Link */}
+                        {drawerPhone && (
+                          <div className="pt-2">
+                            <a
+                              href={`https://wa.me/${drawerPhone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
+                                `Hi ${drawerCustomerName}, this is Costa from R&C Commodities regarding your tyre order ${selectedOrder.order_number}.`
+                              )}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-950/80 border border-emerald-800/80 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-emerald-400 hover:bg-emerald-900 transition-colors"
+                            >
+                              <MessageSquare size={13} />
+                              <span>WhatsApp Customer Directly</span>
+                            </a>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* Fulfilment Details */}
@@ -517,16 +554,27 @@ export function AdminOrders() {
                   </div>
                   <div className="flex items-start gap-2 text-neutral-300">
                     <MapPin size={15} className="text-amber-400 shrink-0 mt-0.5" />
-                    <div>
-                      {selectedOrder.delivery_method === "courier" ? (
-                        <div>
-                          <strong className="text-white block">Nationwide Insured Courier</strong>
-                          <span className="text-neutral-400">Delivery dispatched from Selby warehouse depot.</span>
-                        </div>
-                      ) : (
-                        <div>
-                          <strong className="text-white block">Workshop Collection &amp; Fitment</strong>
-                          <span className="text-neutral-400">39 Webber St, Selby, Johannesburg (Direct Importer Depot).</span>
+                    <div className="space-y-1">
+                      <div>
+                        <strong className="text-white block">
+                          {selectedOrder.delivery_method?.toLowerCase().includes("collection")
+                            ? "Workshop Collection & Fitment"
+                            : "Free Nationwide Delivery"}
+                        </strong>
+                        <span className="text-neutral-400 text-[11px]">
+                          {selectedOrder.delivery_method?.toLowerCase().includes("collection")
+                            ? "39 Webber St, Selby, Johannesburg (Direct Importer Depot)."
+                            : "Dispatched from Selby warehouse depot directly to customer doorstep."}
+                        </span>
+                      </div>
+                      {(selectedOrder.delivery_address || selectedOrder.shipping_address) && (
+                        <div className="pt-1.5 border-t border-neutral-800/80 text-[11px]">
+                          <span className="text-neutral-400 font-bold uppercase text-[10px] block">
+                            Destination Address:
+                          </span>
+                          <span className="text-white font-medium">
+                            {selectedOrder.delivery_address || selectedOrder.shipping_address}
+                          </span>
                         </div>
                       )}
                     </div>
@@ -569,6 +617,43 @@ export function AdminOrders() {
                   </div>
                 </div>
 
+                {/* Payment Information */}
+                <div className="rounded-xl border border-neutral-800 bg-neutral-900/70 p-4 space-y-2.5 text-xs">
+                  <div className="text-xs font-bold uppercase tracking-wider text-neutral-400">
+                    Payment Information
+                  </div>
+                  <div className="flex items-center justify-between pb-1.5 border-b border-neutral-800/60">
+                    <span className="text-neutral-400">Payment Method:</span>
+                    <span className="font-semibold text-white">
+                      {selectedOrder.payment_method === "card_payfast"
+                        ? "Payfast Online (Card / Apple Pay / Instant EFT)"
+                        : "Direct Bank EFT (Standard Bank Selby)"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between pb-1.5 border-b border-neutral-800/60">
+                    <span className="text-neutral-400">Payment Status:</span>
+                    <span
+                      className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-bold uppercase ${
+                        selectedOrder.payment_status === "paid"
+                          ? "bg-emerald-950/80 text-emerald-400 border border-emerald-800/80"
+                          : selectedOrder.payment_status === "pending"
+                          ? "bg-amber-950/80 text-amber-400 border border-amber-800/80"
+                          : "bg-neutral-800 text-neutral-400"
+                      }`}
+                    >
+                      {selectedOrder.payment_status === "paid" ? "Paid (Confirmed)" : selectedOrder.payment_status}
+                    </span>
+                  </div>
+                  {selectedOrder.payment_reference && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-neutral-400">Payment / Audit Reference:</span>
+                      <span className="font-mono text-primary font-bold">
+                        {selectedOrder.payment_reference}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
                 {/* Status Update Controls */}
                 <div className="rounded-xl border border-neutral-800 bg-neutral-900/90 p-4 space-y-4">
                   <span className="text-xs font-bold uppercase tracking-wider text-white block">
@@ -603,7 +688,8 @@ export function AdminOrders() {
                         className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-xs text-white focus:border-primary focus:outline-none"
                       >
                         <option value="unpaid">Unpaid / EFT Pending</option>
-                        <option value="paid">Paid</option>
+                        <option value="pending">Pending (Payfast Gateway)</option>
+                        <option value="paid">Paid (Verified)</option>
                         <option value="refunded">Refunded</option>
                       </select>
                     </div>
