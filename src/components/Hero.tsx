@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowRight, ChevronLeft, ChevronRight, ShieldCheck, Wrench, Truck, Phone } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, ShieldCheck, Truck, Phone } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { ShopButton } from "./ShopButton";
 import { PERFORMANCE_EASE, TACTILE_EASE } from "../lib/motionTokens";
@@ -302,7 +302,7 @@ export function Hero({ onScrollTo }: HeroProps) {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.3 }}
           transition={{ duration: 0.65, ease: PERFORMANCE_EASE }}
-          className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 pt-6 border-t border-border"
+          className="mt-12 grid gap-3 sm:grid-cols-3 lg:grid-cols-3 pt-6 border-t border-border"
         >
           <motion.div
             whileHover={{ y: -3, transition: { duration: 0.18, ease: PERFORMANCE_EASE } }}
@@ -314,19 +314,6 @@ export function Hero({ onScrollTo }: HeroProps) {
             <div>
               <strong className="block font-display text-sm uppercase text-foreground">100% Genuine Tyres</strong>
               <span className="text-xs text-foreground-muted leading-relaxed">Direct Dutch European factory import with verified date codes.</span>
-            </div>
-          </motion.div>
-
-          <motion.div
-            whileHover={{ y: -3, transition: { duration: 0.18, ease: PERFORMANCE_EASE } }}
-            className="flex items-start gap-3 rounded-xl border border-border bg-card p-4 shadow-xs"
-          >
-            <span className="grid size-9 place-items-center rounded-lg bg-amber-500/10 text-amber-500 shrink-0">
-              <Wrench size={19} />
-            </span>
-            <div>
-              <strong className="block font-display text-sm uppercase text-foreground">Selby Fitment Bay</strong>
-              <span className="text-xs text-foreground-muted leading-relaxed">Precision static &amp; dynamic superbike wheel balancing.</span>
             </div>
           </motion.div>
 
