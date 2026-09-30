@@ -10,19 +10,14 @@ export function WorkshopSection() {
   return (
     <section id="workshop" className="mx-auto max-w-[1400px] px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
       <div className="grid gap-8 lg:grid-cols-12 items-stretch">
-        {/* Workshop & Selby Fitment Photos */}
+        {/* Workshop & Warehouse Stock Photos */}
         <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="overflow-hidden rounded-2xl border border-border bg-neutral-950 shadow-xl relative group">
             <img
               src={workshopBayImage}
-              alt="Motorcycle tyre fitment and bead seating on pneumatic machine in Selby workshop"
+              alt="Motorcycle tyre fitment and bead seating on pneumatic machine"
               className="h-full min-h-[360px] w-full object-cover transition-transform duration-500 group-hover:scale-105"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/30 to-transparent flex flex-col justify-end p-5 text-white">
-              <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">Selby Fitment Bay</span>
-              <strong className="font-display text-base text-white">Superbike Specialist Care</strong>
-              <span className="text-xs text-neutral-300 mt-0.5">Pneumatic bead breaker &amp; precision wheel balancing</span>
-            </div>
           </div>
 
           <div className="overflow-hidden rounded-2xl border border-border bg-neutral-950 shadow-xl relative group">

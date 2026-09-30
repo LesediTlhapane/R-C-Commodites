@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import {
   Package,
   Plus,
+  Minus,
   Search,
   Filter,
   Edit2,
@@ -24,6 +25,7 @@ import {
   getAdminProducts,
   createProduct,
   updateProduct,
+  updateProductStock,
   getInventoryHistory,
 } from "../../lib/productService";
 import type { DbProduct, InventoryHistoryItem } from "../../types";
@@ -44,6 +46,14 @@ export function AdminProducts() {
   // Modal / Form state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<DbProduct | null>(null);
+
+  // Dedicated Change Quantity Modal state
+  const [isQuantityModalOpen, setIsQuantityModalOpen] = useState(false);
+  const [productForQuantity, setProductForQuantity] = useState<DbProduct | null>(null);
+  const [modalQuantityVal, setModalQuantityVal] = useState<string>("0");
+  const [modalStockVerified, setModalStockVerified] = useState<boolean>(true);
+  const [modalQuantityNotes, setModalQuantityNotes] = useState<string>("");
+  const [savingQuantity, setSavingQuantity] = useState<boolean>(false);
 
   // Form Fields
   const [formData, setFormData] = useState({
@@ -229,6 +239,71 @@ export function AdminProducts() {
       setErrorMessage(msg);
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Open Dedicated Change Quantity Modal
+  const handleOpenQuantityModal = (product: DbProduct) => {
+    setProductForQuantity(product);
+    setModalQuantityVal(
+      product.stock_quantity !== null && product.stock_quantity !== undefined
+        ? String(product.stock_quantity)
+        : "0"
+    );
+    setModalStockVerified(Boolean(product.stock_verified || (product.stock_quantity !== null && product.stock_quantity !== undefined)));
+    setModalQuantityNotes("");
+    setIsQuantityModalOpen(true);
+    setErrorMessage(null);
+  };
+
+  // Save Dedicated Change Quantity Modal
+  const handleSaveQuantityModal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!productForQuantity) return;
+    setSavingQuantity(true);
+    setErrorMessage(null);
+    try {
+      const parsed = modalQuantityVal.trim() === "" ? null : parseInt(modalQuantityVal, 10);
+      if (parsed !== null && (isNaN(parsed) || parsed < 0)) {
+        throw new Error("Quantity must be a valid non-negative number.");
+      }
+
+      const updated = await updateProductStock(
+        productForQuantity.id,
+        parsed,
+        modalStockVerified,
+        modalQuantityNotes.trim() || undefined
+      );
+
+      setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      setIsQuantityModalOpen(false);
+      showSuccess(
+        `Quantity for "${productForQuantity.name}" updated to ${updated.stock_quantity ?? "null"} units (${modalStockVerified ? "Verified" : "Unverified"}).`
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to update quantity in database.";
+      setErrorMessage(msg);
+    } finally {
+      setSavingQuantity(false);
+    }
+  };
+
+  // Quick Inline Quantity Stepper (+1 / -1)
+  const handleQuickStepQuantity = async (product: DbProduct, delta: number) => {
+    const current = product.stock_quantity ?? 0;
+    const next = Math.max(0, current + delta);
+    try {
+      const updated = await updateProductStock(
+        product.id,
+        next,
+        true,
+        `Quick adjustment: ${delta > 0 ? `+${delta}` : delta} unit(s)`
+      );
+      setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      showSuccess(`Quantity for "${product.name}" set to ${next}.`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to adjust quantity.";
+      setErrorMessage(msg);
     }
   };
 
@@ -577,33 +652,48 @@ export function AdminProducts() {
                               <button
                                 onClick={() => handleSaveQuickStock(p)}
                                 disabled={saving}
-                                className="flex-1 rounded bg-primary py-1 text-[10px] font-bold uppercase text-white hover:bg-primary-hover"
+                                className="flex-1 rounded bg-primary py-1 text-[10px] font-bold uppercase text-white hover:bg-primary-hover cursor-pointer"
                               >
                                 Save
                               </button>
                               <button
                                 onClick={() => setQuickStockId(null)}
-                                className="rounded bg-neutral-800 px-2 py-1 text-[10px] text-neutral-400 hover:text-white"
+                                className="rounded bg-neutral-800 px-2 py-1 text-[10px] text-neutral-400 hover:text-white cursor-pointer"
                               >
                                 Cancel
                               </button>
                             </div>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-sm font-bold text-white">
-                              {p.stock_quantity !== null && p.stock_quantity !== undefined ? p.stock_quantity : "—"}
-                            </span>
+                          <div className="flex items-center gap-1.5">
                             <button
-                              onClick={() => {
-                                setQuickStockId(p.id);
-                                setQuickStockVal(p.stock_quantity !== null ? String(p.stock_quantity) : "");
-                                setQuickStockVerified(Boolean(p.stock_verified || p.stock_quantity !== null));
-                              }}
-                              className="text-neutral-500 hover:text-primary transition-colors p-1"
-                              title="Quick Stock Update"
+                              onClick={() => handleQuickStepQuantity(p, -1)}
+                              disabled={p.stock_quantity === null || p.stock_quantity <= 0}
+                              title="Decrease quantity by 1"
+                              className="size-6 rounded bg-neutral-800 hover:bg-neutral-700 disabled:opacity-25 disabled:pointer-events-none text-neutral-300 hover:text-white grid place-items-center transition cursor-pointer text-xs font-bold"
                             >
-                              <Edit2 size={13} />
+                              <Minus size={11} />
+                            </button>
+                            <button
+                              onClick={() => handleOpenQuantityModal(p)}
+                              title="Click to change product quantity"
+                              className="px-2 py-0.5 rounded hover:bg-neutral-800 font-mono text-sm font-bold text-white transition cursor-pointer border border-transparent hover:border-neutral-700"
+                            >
+                              {p.stock_quantity !== null && p.stock_quantity !== undefined ? p.stock_quantity : "—"}
+                            </button>
+                            <button
+                              onClick={() => handleQuickStepQuantity(p, 1)}
+                              title="Increase quantity by 1"
+                              className="size-6 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white grid place-items-center transition cursor-pointer text-xs font-bold"
+                            >
+                              <Plus size={11} />
+                            </button>
+                            <button
+                              onClick={() => handleOpenQuantityModal(p)}
+                              className="text-neutral-500 hover:text-primary transition-colors p-1 cursor-pointer"
+                              title="Change Product Quantity"
+                            >
+                              <Boxes size={14} />
                             </button>
                           </div>
                         )}
@@ -631,16 +721,24 @@ export function AdminProducts() {
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
+                            onClick={() => handleOpenQuantityModal(p)}
+                            title="Change Quantity of this Product"
+                            className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1.5 text-xs font-bold text-amber-300 transition-colors cursor-pointer"
+                          >
+                            <Boxes size={13} />
+                            <span>Change Qty</span>
+                          </button>
+                          <button
                             onClick={() => handleViewHistory(p.id)}
                             title="View Inventory History"
-                            className="rounded-md border border-neutral-800 bg-neutral-900 p-2 text-neutral-400 hover:text-white hover:border-neutral-700 transition-colors"
+                            className="rounded-md border border-neutral-800 bg-neutral-900 p-2 text-neutral-400 hover:text-white hover:border-neutral-700 transition-colors cursor-pointer"
                           >
                             <History size={14} />
                           </button>
                           <button
                             onClick={() => handleOpenEdit(p)}
                             title="Edit Product"
-                            className="inline-flex items-center gap-1 rounded-md border border-neutral-800 bg-neutral-900 px-2.5 py-1.5 text-xs font-semibold text-neutral-200 hover:text-white hover:border-neutral-700 transition-colors"
+                            className="inline-flex items-center gap-1 rounded-md border border-neutral-800 bg-neutral-900 px-2.5 py-1.5 text-xs font-semibold text-neutral-200 hover:text-white hover:border-neutral-700 transition-colors cursor-pointer"
                           >
                             <Edit2 size={13} /> Edit
                           </button>
@@ -900,17 +998,208 @@ export function AdminProducts() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-neutral-400 hover:text-white transition-colors"
+                  className="rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-neutral-400 hover:text-white transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-xs font-black uppercase tracking-wider text-white hover:bg-primary-hover shadow-lg transition-all active:scale-95 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-xs font-black uppercase tracking-wider text-white hover:bg-primary-hover shadow-lg transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
                 >
                   <Save size={16} />
                   {saving ? "Saving to Supabase..." : "Save Product"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DEDICATED CHANGE QUANTITY MODAL */}
+      {isQuantityModalOpen && productForQuantity && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="change-quantity-modal-title"
+          className="fixed inset-0 z-50 overflow-y-auto bg-neutral-950/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setIsQuantityModalOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-lg rounded-2xl border border-neutral-800 bg-neutral-900 p-6 sm:p-7 shadow-2xl animate-in zoom-in-95 duration-200 text-white"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-neutral-800">
+              <div className="flex items-center gap-3">
+                <div className="grid size-11 place-items-center rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
+                  <Boxes size={22} />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 block">
+                    Inventory &amp; Stock Control
+                  </span>
+                  <h2 id="change-quantity-modal-title" className="font-display text-xl uppercase tracking-tight text-white mt-0.5">
+                    Change Product Quantity
+                  </h2>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsQuantityModalOpen(false)}
+                className="grid size-9 place-items-center rounded-xl border border-neutral-800 bg-neutral-950 text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Product summary card */}
+            <div className="mt-5 rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded bg-primary px-1.5 py-0.5 text-[9px] font-black uppercase text-white">
+                      {productForQuantity.range || "TYRE"}
+                    </span>
+                    <h3 className="font-bold text-white text-sm">{productForQuantity.name}</h3>
+                  </div>
+                  <p className="text-xs text-neutral-400 mt-1">
+                    {productForQuantity.brand} · {productForQuantity.width}/{productForQuantity.profile} ZR {productForQuantity.rim || 17} ({productForQuantity.position})
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-[10px] font-bold uppercase text-neutral-500 block">Current Stock</span>
+                  <span className="font-mono text-lg font-bold text-primary">
+                    {productForQuantity.stock_quantity !== null && productForQuantity.stock_quantity !== undefined
+                      ? `${productForQuantity.stock_quantity} units`
+                      : "Unverified"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSaveQuantityModal} className="mt-5 space-y-5">
+              {/* Stepper Input */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-neutral-300 mb-2">
+                  New Quantity in Stock
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cur = parseInt(modalQuantityVal, 10) || 0;
+                      setModalQuantityVal(String(Math.max(0, cur - 1)));
+                    }}
+                    className="grid size-12 place-items-center rounded-xl bg-neutral-950 border border-neutral-800 hover:border-neutral-700 hover:bg-neutral-800 text-white font-bold text-lg transition active:scale-95 cursor-pointer shrink-0"
+                    title="Decrease by 1"
+                  >
+                    <Minus size={18} />
+                  </button>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={modalQuantityVal}
+                    onChange={(e) => setModalQuantityVal(e.target.value)}
+                    className="flex-1 rounded-xl border border-neutral-700 bg-neutral-950 px-4 py-3 text-center text-2xl font-mono font-black text-white outline-none focus:border-primary shadow-inner"
+                    placeholder="0"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cur = parseInt(modalQuantityVal, 10) || 0;
+                      setModalQuantityVal(String(cur + 1));
+                    }}
+                    className="grid size-12 place-items-center rounded-xl bg-neutral-950 border border-neutral-800 hover:border-neutral-700 hover:bg-neutral-800 text-white font-bold text-lg transition active:scale-95 cursor-pointer shrink-0"
+                    title="Increase by 1"
+                  >
+                    <Plus size={18} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick Preset Buttons */}
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block mb-2">
+                  Quick Adjust Presets
+                </span>
+                <div className="grid grid-cols-6 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setModalQuantityVal("0")}
+                    className="rounded-lg border border-red-500/30 bg-red-950/40 hover:bg-red-900/60 py-2 text-[11px] font-bold text-red-300 transition cursor-pointer"
+                  >
+                    Out (0)
+                  </button>
+                  {[1, 2, 5, 10, 20].map((delta) => (
+                    <button
+                      key={delta}
+                      type="button"
+                      onClick={() => {
+                        const cur = parseInt(modalQuantityVal, 10) || 0;
+                        setModalQuantityVal(String(cur + delta));
+                      }}
+                      className="rounded-lg border border-neutral-800 bg-neutral-950 hover:bg-neutral-800 hover:border-neutral-700 py-2 text-[11px] font-bold text-neutral-200 transition cursor-pointer"
+                    >
+                      +{delta}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Stock Verified Checkbox */}
+              <div className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-3.5">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={modalStockVerified}
+                    onChange={(e) => setModalStockVerified(e.target.checked)}
+                    className="size-4.5 rounded accent-primary mt-0.5 cursor-pointer"
+                  />
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-white block">
+                      Mark as Verified &amp; Confirmed Stock
+                    </span>
+                    <span className="text-[11px] text-neutral-400 leading-normal block mt-0.5">
+                      When checked, customer storefront will allow direct online checkout for up to this quantity.
+                    </span>
+                  </div>
+                </label>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-neutral-300 mb-1.5">
+                  Audit Notes / Reason (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={modalQuantityNotes}
+                  onChange={(e) => setModalQuantityNotes(e.target.value)}
+                  placeholder="e.g. Warehouse count verified, container shipment received"
+                  className="w-full rounded-xl border border-neutral-800 bg-neutral-950 px-3.5 py-2.5 text-xs text-white placeholder-neutral-500 outline-none focus:border-primary"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-neutral-800">
+                <button
+                  type="button"
+                  onClick={() => setIsQuantityModalOpen(false)}
+                  className="rounded-xl border border-neutral-800 bg-neutral-950 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingQuantity}
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-xs font-black uppercase tracking-wider text-white hover:bg-primary-hover shadow-lg transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                >
+                  <Save size={15} />
+                  <span>{savingQuantity ? "Saving Quantity..." : "Save Quantity"}</span>
                 </button>
               </div>
             </form>

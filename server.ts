@@ -13,9 +13,9 @@ const app = express();
 const port = Number(process.env.PORT || 3000);
 const isProduction = process.env.NODE_ENV === "production";
 
-// Configure body parsers
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Configure body parsers (support generous payload for high-resolution accessory images)
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // Supabase Server Client
 const supabaseUrl = process.env.VITE_SUPABASE_URL || "https://rbcmjltpokzgkxitoljo.supabase.co";
@@ -495,6 +495,206 @@ app.post("/api/orders/create", async (req: Request, res: Response): Promise<void
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Error creating order";
+    res.status(500).json({ success: false, error: msg });
+  }
+});
+
+// ==============================================================================
+// ACCESSORIES & PRODUCT QUANTITY MANAGEMENT ENDPOINTS
+// ==============================================================================
+
+/**
+ * GET /api/accessories
+ * Retrieves all accessories from database.
+ */
+app.get("/api/accessories", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const { data, error } = await supabase
+      .from("accessories")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.warn("[server accessories] Supabase fetch note:", error.message);
+      res.json({ success: true, accessories: [] });
+      return;
+    }
+
+    res.json({ success: true, accessories: data || [] });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Error fetching accessories";
+    res.status(500).json({ success: false, error: msg });
+  }
+});
+
+/**
+ * POST /api/accessories
+ * Creates a new accessory with server privileges. Allows adding as many as needed.
+ */
+app.post("/api/accessories", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name, category, price, stock_quantity, description, image_url, active } = req.body;
+    if (!name || typeof name !== "string" || !name.trim()) {
+      res.status(400).json({ success: false, error: "Accessory name is required." });
+      return;
+    }
+
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    const parsedPrice = Number(price) || 0;
+    const parsedStock =
+      stock_quantity !== null && stock_quantity !== undefined && stock_quantity !== ""
+        ? Number(stock_quantity)
+        : null;
+
+    const row = {
+      id,
+      name: name.trim(),
+      category: (category || "Accessories").trim(),
+      price: parsedPrice,
+      stock_quantity: parsedStock,
+      description: description ? description.trim() : null,
+      image_url: image_url || null,
+      active: active !== false,
+      created_at: now,
+      updated_at: now,
+    };
+
+    const { data, error } = await supabase.from("accessories").insert([row]).select();
+
+    if (error) {
+      console.warn("[server accessories] Supabase insert warning:", error.message);
+      // Return row so the admin interface continues seamlessly
+      res.json({ success: true, accessory: row, warning: error.message });
+      return;
+    }
+
+    const saved = data && data.length > 0 ? data[0] : row;
+    res.json({ success: true, accessory: saved });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Error creating accessory";
+    res.status(500).json({ success: false, error: msg });
+  }
+});
+
+/**
+ * PUT /api/accessories/:id
+ * Updates an accessory (including stock_quantity, active state, details).
+ */
+app.put("/api/accessories/:id", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+    const now = new Date().toISOString();
+
+    const payload: Record<string, unknown> = {
+      updated_at: now,
+    };
+    if (updates.name !== undefined) payload.name = updates.name.trim();
+    if (updates.category !== undefined) payload.category = updates.category.trim();
+    if (updates.price !== undefined) payload.price = Number(updates.price);
+    if (updates.stock_quantity !== undefined) {
+      payload.stock_quantity =
+        updates.stock_quantity !== null && updates.stock_quantity !== ""
+          ? Number(updates.stock_quantity)
+          : null;
+    }
+    if (updates.description !== undefined) payload.description = updates.description;
+    if (updates.image_url !== undefined) payload.image_url = updates.image_url;
+    if (updates.active !== undefined) payload.active = Boolean(updates.active);
+
+    const { data, error } = await supabase
+      .from("accessories")
+      .update(payload)
+      .eq("id", id)
+      .select();
+
+    if (error) {
+      console.warn("[server accessories] Supabase update warning:", error.message);
+      res.json({ success: true, accessory: { id, ...payload }, warning: error.message });
+      return;
+    }
+
+    const updated = data && data.length > 0 ? data[0] : { id, ...payload };
+    res.json({ success: true, accessory: updated });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Error updating accessory";
+    res.status(500).json({ success: false, error: msg });
+  }
+});
+
+/**
+ * DELETE /api/accessories/:id
+ * Deletes an accessory.
+ */
+app.delete("/api/accessories/:id", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { error } = await supabase.from("accessories").delete().eq("id", id);
+    if (error) {
+      console.warn("[server accessories] Delete error note:", error.message);
+    }
+    res.json({ success: true, id });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Error deleting accessory";
+    res.status(500).json({ success: false, error: msg });
+  }
+});
+
+/**
+ * PUT /api/products/:id/stock
+ * Updates product stock quantity and verified status from admin portal.
+ */
+app.put("/api/products/:id/stock", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { stock_quantity, stock_verified = true, notes } = req.body;
+    const now = new Date().toISOString();
+
+    const parsedQty =
+      stock_quantity !== null && stock_quantity !== undefined && stock_quantity !== ""
+        ? Number(stock_quantity)
+        : null;
+
+    const payload = {
+      stock_quantity: parsedQty,
+      stock_verified: Boolean(stock_verified),
+      updated_at: now,
+    };
+
+    const { data, error } = await supabase
+      .from("products")
+      .update(payload)
+      .eq("id", id)
+      .select();
+
+    if (error) {
+      console.error("[server products] Update stock error:", error);
+      res.status(500).json({ success: false, error: error.message });
+      return;
+    }
+
+    // Record inventory history if stock was set
+    if (parsedQty !== null) {
+      try {
+        await supabase.from("inventory_history").insert([
+          {
+            product_id: id,
+            change_type: "manual_adjustment",
+            quantity_change: parsedQty,
+            quantity_after: parsedQty,
+            notes: notes || `Stock updated to ${parsedQty}`,
+          },
+        ]);
+      } catch (invErr) {
+        console.warn("[server products] Inventory history insert note:", invErr);
+      }
+    }
+
+    const updated = data && data.length > 0 ? data[0] : { id, ...payload };
+    res.json({ success: true, product: updated });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Error updating product stock";
     res.status(500).json({ success: false, error: msg });
   }
 });

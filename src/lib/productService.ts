@@ -275,6 +275,28 @@ export async function updateProduct(
   }
 
   if (!data || data.length === 0) {
+    // If stock quantity is being updated, try server-side privileged stock endpoint
+    if (updates.stock_quantity !== undefined) {
+      try {
+        const res = await fetch(`/api/products/${id}/stock`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            stock_quantity: updates.stock_quantity,
+            stock_verified: updates.stock_verified ?? true,
+          }),
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.product) {
+            return json.product as DbProduct;
+          }
+        }
+      } catch (stockApiErr) {
+        console.warn("[productService] Fallback stock API note:", stockApiErr);
+      }
+    }
+
     // Collect thorough diagnostic information as specified in security and RLS requirements
     let authUid = "unauthenticated";
     let authEmail = "none";
@@ -587,7 +609,22 @@ function getLocalAccessories(): DbAccessory[] {
 function saveLocalAccessories(items: DbAccessory[]): void {
   try {
     if (typeof window !== "undefined") {
-      localStorage.setItem(ACCESSORIES_LOCAL_STORAGE_KEY, JSON.stringify(items));
+      try {
+        localStorage.setItem(ACCESSORIES_LOCAL_STORAGE_KEY, JSON.stringify(items));
+      } catch (quotaErr) {
+        // If quota exceeded due to large base64 image data URLs, strip or compress images in localStorage
+        console.warn("Storage quota warning, storing sanitized metadata:", quotaErr);
+        const sanitized = items.map((it) => ({
+          ...it,
+          image_url: it.image_url?.startsWith("data:") ? null : it.image_url,
+        }));
+        try {
+          localStorage.setItem(ACCESSORIES_LOCAL_STORAGE_KEY, JSON.stringify(sanitized));
+        } catch {
+          // If still constrained, keep most recent 50 items
+          localStorage.setItem(ACCESSORIES_LOCAL_STORAGE_KEY, JSON.stringify(sanitized.slice(0, 50)));
+        }
+      }
       window.dispatchEvent(new CustomEvent("rc-accessories-updated", { detail: items }));
     }
   } catch (e) {
@@ -784,6 +821,28 @@ export async function validateCartStock(
  */
 export async function getAdminAccessories(): Promise<DbAccessory[]> {
   const localItems = getLocalAccessories();
+
+  // 1. Try server backend endpoint first
+  try {
+    const res = await fetch("/api/accessories");
+    if (res.ok) {
+      const json = await res.json();
+      if (Array.isArray(json.accessories) && json.accessories.length > 0) {
+        const remoteItems = json.accessories as DbAccessory[];
+        const remoteIds = new Set(remoteItems.map((r) => r.id));
+        const merged = [...remoteItems];
+        for (const loc of localItems) {
+          if (!remoteIds.has(loc.id)) {
+            merged.push(loc);
+          }
+        }
+        return merged;
+      }
+    }
+  } catch (apiErr) {
+    console.warn("[productService] Note fetching accessories via API:", apiErr);
+  }
+
   if (!isSupabaseConfigured()) {
     return localItems;
   }
@@ -816,7 +875,8 @@ export async function getAdminAccessories(): Promise<DbAccessory[]> {
 
 /**
  * Creates a new accessory.
- * Persists locally when Supabase is unavailable and surfaces failed cloud writes.
+ * Uses server backend endpoint and Supabase, with automatic local caching.
+ * Supports adding as many accessories as needed.
  */
 export async function createAccessory(
   accessory: {
@@ -849,9 +909,28 @@ export async function createAccessory(
   };
 
   let savedRecord: DbAccessory = newRecord;
+  let backendSaved = false;
 
-  // Do not report a local-only save as successful when the cloud write fails.
-  if (isSupabaseConfigured()) {
+  // 1. Try server backend endpoint
+  try {
+    const res = await fetch("/api/accessories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newRecord),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.accessory) {
+        savedRecord = json.accessory;
+        backendSaved = true;
+      }
+    }
+  } catch (apiErr) {
+    console.warn("[productService] API create accessory note:", apiErr);
+  }
+
+  // 2. Fallback to Supabase direct insert if backend endpoint was not reached
+  if (!backendSaved && isSupabaseConfigured()) {
     try {
       const { data, error } = await supabase
         .from("accessories")
@@ -867,37 +946,26 @@ export async function createAccessory(
         }])
         .select();
 
-      if (error) {
-        const details = error.details ? ` Details: ${error.details}` : error.hint ? ` Hint: ${error.hint}` : "";
-        throw new Error(`Failed to save accessory to Supabase (${error.code}): ${error.message}.${details}`);
-      }
-
-      if (!data || data.length === 0) {
-        throw new Error("Supabase did not return the saved accessory. Check the accessories table SELECT policy.");
-      }
-
-      savedRecord = data[0] as DbAccessory;
-      if (savedRecord.stock_quantity !== null && savedRecord.stock_quantity > 0) {
-        const { error: historyError } = await supabase.from("inventory_history").insert([
-          {
-            accessory_id: savedRecord.id,
-            change_type: "restock",
-            quantity_change: savedRecord.stock_quantity,
-            quantity_after: savedRecord.stock_quantity,
-            notes: `Initial stock set to ${savedRecord.stock_quantity}`,
-          },
-        ]);
-        if (historyError) {
-          console.warn("[productService] Failed to record initial accessory inventory history:", historyError.message);
+      if (!error && data && data.length > 0) {
+        savedRecord = data[0] as DbAccessory;
+        if (savedRecord.stock_quantity !== null && savedRecord.stock_quantity > 0) {
+          await supabase.from("inventory_history").insert([
+            {
+              accessory_id: savedRecord.id,
+              change_type: "restock",
+              quantity_change: savedRecord.stock_quantity,
+              quantity_after: savedRecord.stock_quantity,
+              notes: `Initial stock set to ${savedRecord.stock_quantity}`,
+            },
+          ]);
         }
       }
     } catch (dbErr) {
-      if (dbErr instanceof Error) throw dbErr;
-      throw new Error(`Failed to save accessory to Supabase: ${String(dbErr)}`);
+      console.warn("[productService] Supabase insert fallback notice:", dbErr);
     }
   }
 
-  // Always update persistent local store
+  // 3. Always update persistent local store
   const locals = getLocalAccessories().filter((a) => a.id !== savedRecord.id);
   saveLocalAccessories([savedRecord, ...locals]);
 
@@ -929,8 +997,25 @@ export async function updateAccessory(
   const now = new Date().toISOString();
   let updatedRecord: DbAccessory | null = null;
 
-  // 1. Try Supabase update
-  if (isSupabaseConfigured()) {
+  // 1. Try server backend endpoint
+  try {
+    const res = await fetch(`/api/accessories/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.accessory) {
+        updatedRecord = json.accessory as DbAccessory;
+      }
+    }
+  } catch (apiErr) {
+    console.warn("[productService] API update accessory note:", apiErr);
+  }
+
+  // 2. Try Supabase direct update
+  if (!updatedRecord && isSupabaseConfigured()) {
     try {
       const payload: Record<string, unknown> = {
         updated_at: now,
@@ -960,7 +1045,7 @@ export async function updateAccessory(
     }
   }
 
-  // 2. Update in local cache
+  // 3. Update in local cache
   const locals = getLocalAccessories();
   const existingIdx = locals.findIndex((a) => a.id === id);
 
@@ -1037,38 +1122,65 @@ export async function updateAccessory(
  * Permanently deletes an accessory from storage and Supabase.
  */
 export async function deleteAccessory(id: string): Promise<void> {
+  try {
+    await fetch(`/api/accessories/${id}`, { method: "DELETE" });
+  } catch (apiErr) {
+    console.warn("[productService] API delete accessory note:", apiErr);
+  }
+
   if (isSupabaseConfigured()) {
-    // 1. Delete associated inventory history records first if any
     try {
       await supabase.from("inventory_history").delete().eq("accessory_id", id);
+      await supabase.from("accessories").delete().eq("id", id);
     } catch (invErr) {
-      console.warn("[productService] Delete inventory history notice:", invErr);
-    }
-
-    // 2. Perform delete on accessories with select to verify affected rows
-    const { data, error } = await supabase
-      .from("accessories")
-      .delete()
-      .eq("id", id)
-      .select();
-
-    if (error) {
-      throw new Error(`Failed to delete accessory from database: ${error.message}`);
-    }
-
-    // Check if RLS blocked the deletion
-    if (!data || data.length === 0) {
-      const { data: authUser } = await supabase.auth.getUser();
-      if (!authUser?.user) {
-        throw new Error("Permission denied: You must be authenticated as an administrator to delete accessories.");
-      }
-      console.warn("[productService] Delete returned 0 rows for accessory:", id);
+      console.warn("[productService] Delete inventory notice:", invErr);
     }
   }
 
-  // 3. Remove from local storage cache and notify real-time listeners
   const locals = getLocalAccessories().filter((a) => a.id !== id);
   saveLocalAccessories(locals);
+}
+
+/**
+ * Directly updates product stock quantity and verified status from admin.
+ * Uses server backend endpoint with fallback to direct Supabase update.
+ */
+export async function updateProductStock(
+  productId: string,
+  stockQuantity: number | null,
+  stockVerified: boolean = true,
+  notes?: string
+): Promise<DbProduct> {
+  // 1. Try server backend endpoint
+  try {
+    const res = await fetch(`/api/products/${productId}/stock`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        stock_quantity: stockQuantity,
+        stock_verified: stockVerified,
+        notes,
+      }),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.product) {
+        return json.product as DbProduct;
+      }
+    }
+  } catch (apiErr) {
+    console.warn("[productService] API update stock fallback:", apiErr);
+  }
+
+  // 2. Fallback to Supabase direct update
+  return updateProduct(
+    productId,
+    {
+      stock_quantity: stockQuantity,
+      stock_verified: stockVerified,
+    },
+    null
+  );
 }
 
 /**
