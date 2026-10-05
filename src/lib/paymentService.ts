@@ -222,6 +222,17 @@ export function submitPayfastPaymentForm(processUrl: string, fields: Record<stri
   form.action = processUrl;
   form.style.display = "none";
 
+  // When embedded in an iframe (e.g. AI Studio preview pane), Payfast rejects being loaded
+  // inside an iframe ("refused to connect" / X-Frame-Options: SAMEORIGIN).
+  // Target the top window so the browser navigates the main page directly.
+  try {
+    if (typeof window !== "undefined" && window.self !== window.top) {
+      form.target = "_top";
+    }
+  } catch {
+    form.target = "_top";
+  }
+
   for (const [key, value] of Object.entries(fields)) {
     const input = document.createElement("input");
     input.type = "hidden";
