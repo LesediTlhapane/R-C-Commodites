@@ -275,8 +275,8 @@ export function CartDrawer({
         formData.postalCode.trim() ? ` ${formData.postalCode.trim()}` : ""
       }`;
 
-      // Initial payment status: 'pending' for Payfast, 'unpaid' for direct EFT
-      const initialStatus = formData.paymentMethod === "card_payfast" ? "pending" : "unpaid";
+      // Initial payment status matching database orders_payment_status_check constraint ('pending')
+      const initialStatus = "pending";
 
       // 1. Authoritative order persistence into Supabase
       const res = await createOrder({
@@ -334,7 +334,7 @@ export function CartDrawer({
       }
 
       // 4. For Direct Bank EFT: show confirmation screen immediately
-      setVerifiedPaymentStatus("unpaid");
+      setVerifiedPaymentStatus("pending");
       setStep("confirmation");
       onClearCart();
     } catch (err: unknown) {

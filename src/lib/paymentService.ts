@@ -13,7 +13,7 @@
 
 export type PaymentMethod = "card_payfast" | "eft" | "card_paystack";
 
-export type PaymentStatus = "unpaid" | "pending" | "paid" | "failed" | "refunded";
+export type PaymentStatus = "pending" | "paid" | "failed" | "refunded" | "cancelled" | "unpaid";
 
 export interface BankDetails {
   bankName: string;

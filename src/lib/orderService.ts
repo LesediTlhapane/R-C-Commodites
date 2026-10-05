@@ -197,7 +197,7 @@ export async function createOrder(params: CreateOrderParams): Promise<CreateOrde
     notes,
     paymentMethod = "eft",
     paymentReference,
-    paymentStatus = "unpaid",
+    paymentStatus = "pending",
   } = params;
 
   if (items.length === 0) {
@@ -257,7 +257,7 @@ export async function createOrder(params: CreateOrderParams): Promise<CreateOrde
     subtotal,
     delivery_fee: 0,
     total,
-    payment_status: paymentStatus,
+    payment_status: paymentStatus === "paid" ? "paid" : "pending",
     payment_method: paymentMethod,
     payment_provider: paymentMethod === "card_payfast" ? "payfast" : "eft",
     delivery_method: "Nationwide Delivery",

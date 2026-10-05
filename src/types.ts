@@ -102,7 +102,7 @@ export interface DbOrder {
   total: number;
   payment_method?: string | null;
   payment_provider?: string | null;
-  payment_status: "unpaid" | "pending" | "paid" | "refunded";
+  payment_status: "pending" | "paid" | "refunded" | "cancelled" | "failed";
   delivery_method: string;
   delivery_address_line1?: string | null;
   delivery_address?: string | null;
