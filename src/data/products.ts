@@ -1,7 +1,7 @@
 import detailAsset from "../assets/Centauro_detail.jpeg";
-import st19050Asset from "../assets/190 50 ZR 17 ST.PNG";
-import ns19055Asset from "../assets/190 55 ZR 17 NS .PNG";
-import ns20055Asset from "../assets/200 55 ZR 17 NS.PNG";
+import st19050Asset from "../assets/190-50-ZR-17-ST.png";
+import ns19055Asset from "../assets/190-55-ZR-17-NS.png";
+import ns20055Asset from "../assets/200-55-ZR-17-NS.png";
 import front12070Asset from "../assets/329.jpg";
 import type { TyreProduct, TyreCombo, AccessoryItem } from "../types";
 

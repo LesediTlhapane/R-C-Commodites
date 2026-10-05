@@ -30,9 +30,9 @@ export function resolveAsset(candidates: string | string[], fallback: string): s
 /**
  * Resolves the specific profile photo for a tyre product if an uploaded photo matches its dimensions and range.
  * Specifically checks for uploaded photos like:
- * - "200 55 ZR 17 NS.PNG" -> 200/55 ZR 17 NS
- * - "190 50 ZR 17 ST.PNG" -> 190/50 ZR 17 ST
- * - "190 55 ZR 17 NS .PNG" -> 190/55 ZR 17 NS
+ * - "200-55-ZR-17-NS.png" -> 200/55 ZR 17 NS
+ * - "190-50-ZR-17-ST.png" -> 190/50 ZR 17 ST
+ * - "190-55-ZR-17-NS.png" -> 190/55 ZR 17 NS
  */
 export function getTyreProfileImage(
   size: string,

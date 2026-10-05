@@ -429,9 +429,21 @@ export async function createOrder(params: CreateOrderParams): Promise<CreateOrde
 
 /**
  * Fetches all orders with joined customer and item details for the Admin Portal.
- * Requires administrator role in Supabase.
+ * Merges orders from backend API and Supabase database.
  */
 export async function getAdminOrders(): Promise<DbOrder[]> {
+  try {
+    const apiRes = await fetch("/api/orders");
+    if (apiRes.ok) {
+      const apiData = await apiRes.json();
+      if (apiData.success && Array.isArray(apiData.orders)) {
+        return apiData.orders as DbOrder[];
+      }
+    }
+  } catch (apiErr) {
+    console.warn("[orderService] /api/orders fetch notice, trying direct Supabase:", apiErr);
+  }
+
   if (!isSupabaseConfigured()) {
     return [];
   }
