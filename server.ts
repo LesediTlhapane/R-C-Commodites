@@ -200,6 +200,14 @@ app.post("/api/payfast/create-payment", async (req: Request, res: Response): Pro
     const cancelUrl = clientCancelUrl || `${appUrl}/?payment=cancelled&order=${encodeURIComponent(orderNumber)}`;
     const notifyUrl = `${appUrl}/api/payfast/itn`;
 
+    // In Payfast Sandbox, merchants cannot pay themselves using their own registered merchant email.
+    // If the customer email matches the registered merchant account, substitute a valid test buyer email
+    // for Payfast gateway validation while keeping the customer's real email saved in the database.
+    const payfastEmail =
+      config.isSandbox && email.toLowerCase() === "leseditlhapane5@gmail.com"
+        ? "shopper@rc-commodities.co.za"
+        : email;
+
     // 3. Construct Payfast Parameters
     const paymentData: Record<string, string> = {
       merchant_id: config.merchantId,
@@ -209,7 +217,7 @@ app.post("/api/payfast/create-payment", async (req: Request, res: Response): Pro
       notify_url: notifyUrl,
       name_first: firstName,
       name_last: lastName,
-      email_address: email,
+      email_address: payfastEmail,
       ...(phone ? { cell_number: phone } : {}),
       m_payment_id: orderNumber,
       amount: formattedAmount,
@@ -217,7 +225,7 @@ app.post("/api/payfast/create-payment", async (req: Request, res: Response): Pro
       item_description: `Superbike tyres and accessories Order ${orderNumber}`,
       custom_str1: order.id,
       email_confirmation: "1",
-      confirmation_address: email,
+      confirmation_address: payfastEmail,
     };
 
     // 4. Generate signature server-side
@@ -450,7 +458,7 @@ app.get("/api/payfast/status/:orderNumber", async (req: Request, res: Response):
     try {
       const { data: dbOrder, error } = await supabase
         .from("orders")
-        .select("id, order_number, payment_status, payment_method, status, total, payment_reference, updated_at")
+        .select("*, customer:customers(*), order_items(*)")
         .eq("order_number", orderNumber)
         .maybeSingle();
 
@@ -479,6 +487,7 @@ app.get("/api/payfast/status/:orderNumber", async (req: Request, res: Response):
       total: order.total,
       paymentReference: order.payment_reference,
       updatedAt: order.updated_at,
+      order,
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Error checking payment status";

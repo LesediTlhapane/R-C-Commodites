@@ -107,8 +107,35 @@ export function CartDrawer({
       fetchServerPaymentStatus(initialOrderNumber).then((st) => {
         if (st.success) {
           setVerifiedPaymentStatus(st.paymentStatus);
-          if (orderResult) {
-            setOrderResult((prev) => (prev ? { ...prev, paymentStatus: st.paymentStatus } : null));
+          if (st.order) {
+            setOrderResult((prev) => {
+              if (prev) return { ...prev, paymentStatus: st.paymentStatus };
+              return {
+                success: true,
+                orderNumber: st.order.order_number,
+                orderId: st.order.id,
+                subtotal: st.order.subtotal,
+                total: st.order.total,
+                paymentMethod: st.order.payment_method,
+                paymentReference: st.order.payment_reference,
+                paymentStatus: st.order.payment_status,
+                deliveryMethod: st.order.delivery_method || "Nationwide Delivery",
+                deliveryAddress: st.order.delivery_address_line1 || "",
+                customer: {
+                  firstName: st.order.customer?.first_name || "Valued",
+                  lastName: st.order.customer?.last_name || "Customer",
+                  email: st.order.customer?.email || "",
+                  phone: st.order.customer?.phone || "",
+                },
+                items: (st.order.order_items || []).map((i: any) => ({
+                  title: i.product_name,
+                  subtitle: "",
+                  quantity: i.quantity,
+                  price: i.unit_price,
+                })),
+                savedToDatabase: true,
+              };
+            });
           }
         }
       });

@@ -244,6 +244,7 @@ export async function fetchServerPaymentStatus(orderNumber: string): Promise<{
   orderStatus?: string;
   total?: number;
   paymentReference?: string;
+  order?: any;
   error?: string;
 }> {
   try {
@@ -259,6 +260,7 @@ export async function fetchServerPaymentStatus(orderNumber: string): Promise<{
       orderStatus: data.orderStatus,
       total: data.total,
       paymentReference: data.paymentReference,
+      order: data.order,
     };
   } catch (err: unknown) {
     return {
