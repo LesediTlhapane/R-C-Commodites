@@ -98,10 +98,13 @@ export interface DbOrder {
   customer_id: string | null;
   status: "pending" | "processing" | "dispatched" | "completed" | "cancelled";
   subtotal: number;
+  delivery_fee?: number;
   total: number;
   payment_method?: string | null;
+  payment_provider?: string | null;
   payment_status: "unpaid" | "pending" | "paid" | "refunded";
   delivery_method: string;
+  delivery_address_line1?: string | null;
   delivery_address?: string | null;
   shipping_address?: string | null;
   customer_name?: string | null;

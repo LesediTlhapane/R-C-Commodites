@@ -822,27 +822,6 @@ export async function validateCartStock(
 export async function getAdminAccessories(): Promise<DbAccessory[]> {
   const localItems = getLocalAccessories();
 
-  // 1. Try server backend endpoint first
-  try {
-    const res = await fetch("/api/accessories");
-    if (res.ok) {
-      const json = await res.json();
-      if (Array.isArray(json.accessories) && json.accessories.length > 0) {
-        const remoteItems = json.accessories as DbAccessory[];
-        const remoteIds = new Set(remoteItems.map((r) => r.id));
-        const merged = [...remoteItems];
-        for (const loc of localItems) {
-          if (!remoteIds.has(loc.id)) {
-            merged.push(loc);
-          }
-        }
-        return merged;
-      }
-    }
-  } catch (apiErr) {
-    console.warn("[productService] Note fetching accessories via API:", apiErr);
-  }
-
   if (!isSupabaseConfigured()) {
     return localItems;
   }
@@ -909,28 +888,9 @@ export async function createAccessory(
   };
 
   let savedRecord: DbAccessory = newRecord;
-  let backendSaved = false;
 
-  // 1. Try server backend endpoint
-  try {
-    const res = await fetch("/api/accessories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newRecord),
-    });
-    if (res.ok) {
-      const json = await res.json();
-      if (json.accessory) {
-        savedRecord = json.accessory;
-        backendSaved = true;
-      }
-    }
-  } catch (apiErr) {
-    console.warn("[productService] API create accessory note:", apiErr);
-  }
-
-  // 2. Fallback to Supabase direct insert if backend endpoint was not reached
-  if (!backendSaved && isSupabaseConfigured()) {
+  // Direct Supabase insert
+  if (isSupabaseConfigured()) {
     try {
       const { data, error } = await supabase
         .from("accessories")
@@ -997,25 +957,8 @@ export async function updateAccessory(
   const now = new Date().toISOString();
   let updatedRecord: DbAccessory | null = null;
 
-  // 1. Try server backend endpoint
-  try {
-    const res = await fetch(`/api/accessories/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updates),
-    });
-    if (res.ok) {
-      const json = await res.json();
-      if (json.accessory) {
-        updatedRecord = json.accessory as DbAccessory;
-      }
-    }
-  } catch (apiErr) {
-    console.warn("[productService] API update accessory note:", apiErr);
-  }
-
-  // 2. Try Supabase direct update
-  if (!updatedRecord && isSupabaseConfigured()) {
+  // Direct Supabase update
+  if (isSupabaseConfigured()) {
     try {
       const payload: Record<string, unknown> = {
         updated_at: now,
@@ -1122,12 +1065,6 @@ export async function updateAccessory(
  * Permanently deletes an accessory from storage and Supabase.
  */
 export async function deleteAccessory(id: string): Promise<void> {
-  try {
-    await fetch(`/api/accessories/${id}`, { method: "DELETE" });
-  } catch (apiErr) {
-    console.warn("[productService] API delete accessory note:", apiErr);
-  }
-
   if (isSupabaseConfigured()) {
     try {
       await supabase.from("inventory_history").delete().eq("accessory_id", id);

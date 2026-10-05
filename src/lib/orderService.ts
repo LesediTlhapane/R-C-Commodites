@@ -225,163 +225,63 @@ export async function createOrder(params: CreateOrderParams): Promise<CreateOrde
   }
 
   // 2. Insert customer contact details into Supabase
-  try {
-    const { error: custErr } = await supabase.from("customers").insert([
-      {
-        id: customerId,
-        first_name: customer.firstName.trim(),
-        last_name: customer.lastName.trim() || null,
-        email: customer.email.trim() || null,
-        phone: customer.phone.trim() || null,
-      },
-    ]);
+  const customerPayload = {
+    id: customerId,
+    first_name: customer.firstName.trim(),
+    last_name: customer.lastName ? customer.lastName.trim() : null,
+    email: customer.email ? customer.email.trim() : null,
+    phone: customer.phone ? customer.phone.trim() : null,
+  };
 
-    if (custErr) {
-      console.warn("[orderService] Note on customer insert:", custErr.message);
+  const { error: custErr } = await supabase
+    .from("customers")
+    .insert([customerPayload]);
+
+  if (custErr) {
+    console.error("[orderService] Failed to insert customer:", custErr);
+    const isRls = custErr.code === "42501" || custErr.message?.includes("row-level security");
+    if (isRls) {
+      throw new Error(
+        "Checkout permission error (Row Level Security): Please execute the orders & customers RLS migration in your Supabase SQL Editor."
+      );
     }
-  } catch (custEx) {
-    console.warn("[orderService] Note on customer insert exception:", custEx);
+    throw new Error(`Failed to save customer details: ${custErr.message}`);
   }
 
-  // 3. Insert order record into Supabase
-  let insertedOrder: DbOrder | null = null;
-
-  // Try comprehensive payload first (matches updated schema)
-  const fullOrderPayload = {
+  // 3. Insert order record into Supabase using ONLY columns that exist in the database table
+  const orderPayload = {
     id: orderId,
     order_number: orderNumber,
     customer_id: customerId,
     status: "pending" as const,
     subtotal,
+    delivery_fee: 0,
     total,
     payment_status: paymentStatus,
     payment_method: paymentMethod,
+    payment_provider: paymentMethod === "card_payfast" ? "payfast" : "eft",
     delivery_method: "Nationwide Delivery",
-    delivery_address: resolvedAddress || null,
-    shipping_address: resolvedAddress || null,
-    customer_name: `${customer.firstName} ${customer.lastName}`.trim(),
-    customer_email: customer.email.trim() || null,
-    customer_phone: customer.phone.trim() || null,
+    delivery_address_line1: resolvedAddress || null,
     payment_reference: resolvedPaymentReference,
-    notes: notes || null,
   };
 
-  let { data: orderData, error: orderErr } = await supabase
+  const { data: orderData, error: orderErr } = await supabase
     .from("orders")
-    .insert([fullOrderPayload])
+    .insert([orderPayload])
     .select();
 
-  // If a column doesn't exist yet on remote schema, gracefully retry with standard columns
-  if (
-    orderErr &&
-    (orderErr.message.includes("column") ||
-      orderErr.code === "PGRST204" ||
-      orderErr.code === "42703")
-  ) {
-    console.warn("[orderService] Retrying with standard orders columns:", orderErr.message);
-    const standardPayload = {
-      id: orderId,
-      order_number: orderNumber,
-      customer_id: customerId,
-      status: "pending",
-      subtotal,
-      total,
-      payment_status: paymentStatus,
-      payment_method: paymentMethod,
-      delivery_method: resolvedAddress
-        ? `Nationwide Delivery (${resolvedAddress})`
-        : "Nationwide Delivery",
-      payment_reference: resolvedPaymentReference,
-    };
-
-    const fallbackRes = await supabase
-      .from("orders")
-      .insert([standardPayload])
-      .select();
-
-    orderData = fallbackRes.data;
-    orderErr = fallbackRes.error;
-  }
-
-  // 4. Check for Supabase errors: If direct insert fails, try backend order persistence
   if (orderErr) {
-    console.warn("[orderService] Direct Supabase insert failed, trying backend order API:", orderErr.message);
-    try {
-      const serverRes = await fetch("/api/orders/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customer,
-          items,
-          deliveryMethod: "Nationwide Delivery",
-          shippingAddress: resolvedAddress,
-          notes,
-          paymentMethod,
-          paymentReference: resolvedPaymentReference,
-          paymentStatus,
-          orderNumber,
-        }),
-      });
-
-      const serverData = await serverRes.json();
-      if (serverRes.ok && serverData.success) {
-        try {
-          await decrementStockForOrder(items, serverData.orderNumber);
-        } catch {
-          // Non-critical
-        }
-
-        return {
-          success: true,
-          orderNumber: serverData.orderNumber,
-          orderId: serverData.orderId,
-          subtotal: serverData.subtotal,
-          total: serverData.total,
-          savedToDatabase: true,
-          paymentMethod,
-          paymentReference: serverData.paymentReference,
-          paymentStatus: serverData.paymentStatus,
-          deliveryMethod: "Nationwide Delivery",
-          deliveryAddress: resolvedAddress,
-          customer,
-          items: [...items],
-          persistedOrder: serverData.persistedOrder,
-        };
-      }
-    } catch (apiErr) {
-      console.warn("[orderService] Backend API fallback error:", apiErr);
-    }
-
     console.error("[orderService] Critical failure inserting order into Supabase:", orderErr);
-    const isRls = orderErr.code === "42501" || orderErr.message.includes("row-level security");
-    const rlsHelp = isRls
-      ? " Database security check: Please run 'supabase/migrations/20260928_orders_persistence_and_rls.sql' in your Supabase SQL Editor to enable public checkout order insertion."
-      : "";
-    throw new Error(
-      `We couldn't place your order. Please try again or contact R&C Commodities.${rlsHelp}`
-    );
-  }
-
-  // 5. Confirm that a real order record was returned or exists
-  if (!orderData || orderData.length === 0) {
-    const { data: verifiedRecord, error: fetchErr } = await supabase
-      .from("orders")
-      .select("*, customer:customers(*)")
-      .eq("id", orderId)
-      .maybeSingle();
-
-    if (fetchErr || !verifiedRecord) {
-      console.error("[orderService] Order record could not be confirmed in Supabase:", fetchErr);
+    const isRls = orderErr.code === "42501" || orderErr.message?.includes("row-level security");
+    if (isRls) {
       throw new Error(
-        "We couldn't place your order. Please try again or contact R&C Commodities."
+        "Checkout permission error (Row Level Security on orders): Please run the orders RLS migration in your Supabase SQL Editor to allow public order submissions."
       );
     }
-    insertedOrder = verifiedRecord as DbOrder;
-  } else {
-    insertedOrder = orderData[0] as DbOrder;
+    throw new Error(`Failed to place order: ${orderErr.message}`);
   }
 
-  // 6. Insert order items into order_items table
+  // 4. Insert order line items into order_items table
   const orderItemsRows = items.map((item) => ({
     id: generateUuid(),
     order_id: orderId,
@@ -393,7 +293,9 @@ export async function createOrder(params: CreateOrderParams): Promise<CreateOrde
   }));
 
   try {
-    const { error: itemsErr } = await supabase.from("order_items").insert(orderItemsRows);
+    const { error: itemsErr } = await supabase
+      .from("order_items")
+      .insert(orderItemsRows);
     if (itemsErr) {
       console.warn("[orderService] Note on order_items insert:", itemsErr.message);
     }
@@ -401,14 +303,32 @@ export async function createOrder(params: CreateOrderParams): Promise<CreateOrde
     console.warn("[orderService] Exception during order_items insert:", itemsEx);
   }
 
-  // 7. Decrement stock in inventory
+  // 5. Decrement stock in inventory
   try {
     await decrementStockForOrder(items, orderNumber);
   } catch (stockErr) {
     console.warn("[orderService] Note during stock decrement:", stockErr);
   }
 
-  // 8. Return successfully persisted order
+  // 6. Build the authoritative persisted order object
+  const insertedOrder: DbOrder = (orderData && orderData[0] ? orderData[0] : orderPayload) as DbOrder;
+  insertedOrder.customer = {
+    id: customerId,
+    first_name: customer.firstName.trim(),
+    last_name: customer.lastName ? customer.lastName.trim() : null,
+    email: customer.email ? customer.email.trim() : null,
+    phone: customer.phone ? customer.phone.trim() : null,
+  };
+  insertedOrder.order_items = orderItemsRows.map((it) => ({
+    id: it.id,
+    order_id: it.order_id,
+    product_id: it.product_id,
+    product_name: it.product_name,
+    quantity: it.quantity,
+    unit_price: it.unit_price,
+    subtotal: it.subtotal,
+  }));
+
   return {
     success: true,
     orderNumber,
@@ -432,18 +352,6 @@ export async function createOrder(params: CreateOrderParams): Promise<CreateOrde
  * Merges orders from backend API and Supabase database.
  */
 export async function getAdminOrders(): Promise<DbOrder[]> {
-  try {
-    const apiRes = await fetch("/api/orders");
-    if (apiRes.ok) {
-      const apiData = await apiRes.json();
-      if (apiData.success && Array.isArray(apiData.orders)) {
-        return apiData.orders as DbOrder[];
-      }
-    }
-  } catch (apiErr) {
-    console.warn("[orderService] /api/orders fetch notice, trying direct Supabase:", apiErr);
-  }
-
   if (!isSupabaseConfigured()) {
     return [];
   }
