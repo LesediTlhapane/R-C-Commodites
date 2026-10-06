@@ -48,7 +48,7 @@ export default async function handler(req: any, res: any) {
 
     const rawSandbox = (process.env.PAYFAST_SANDBOX || "").trim().toLowerCase();
     const isSandbox = rawSandbox !== "false" && rawSandbox !== "production" && rawSandbox !== "0";
-    const expectedMerchantId = (process.env.PAYFAST_MERCHANT_ID || (isSandbox ? "10055113" : "")).trim();
+    const expectedMerchantId = (process.env.PAYFAST_MERCHANT_ID || "").trim();
     const passphrase = (process.env.PAYFAST_PASSPHRASE || "").trim();
 
     if (merchant_id !== expectedMerchantId) {

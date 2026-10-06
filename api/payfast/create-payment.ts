@@ -58,9 +58,21 @@ export default async function handler(req: any, res: any) {
     const rawSandbox = (process.env.PAYFAST_SANDBOX || "").trim().toLowerCase();
     const isSandbox = rawSandbox !== "false" && rawSandbox !== "production" && rawSandbox !== "0";
 
-    const merchantId = (process.env.PAYFAST_MERCHANT_ID || (isSandbox ? "10055113" : "")).trim();
-    const merchantKey = (process.env.PAYFAST_MERCHANT_KEY || (isSandbox ? "f9nzymq15r4tf" : "")).trim();
+    const merchantId = (process.env.PAYFAST_MERCHANT_ID || "").trim();
+    const merchantKey = (process.env.PAYFAST_MERCHANT_KEY || "").trim();
     const passphrase = (process.env.PAYFAST_PASSPHRASE || "").trim();
+
+    if (!merchantId || !merchantKey) {
+      res.statusCode = 500;
+      res.setHeader("Content-Type", "application/json");
+      res.end(
+        JSON.stringify({
+          success: false,
+          error: "PayFast credentials (PAYFAST_MERCHANT_ID / PAYFAST_MERCHANT_KEY) are not configured in environment variables.",
+        })
+      );
+      return;
+    }
 
     const processUrl = isSandbox
       ? "https://sandbox.payfast.co.za/eng/process"

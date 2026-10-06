@@ -76,12 +76,8 @@ const getPayfastConfig = () => {
     rawSandbox.includes("www.payfast.co.za");
   const isSandbox = !isProduction;
 
-  const merchantId = (
-    process.env.PAYFAST_MERCHANT_ID || (isSandbox ? "10000100" : "")
-  ).trim();
-  const merchantKey = (
-    process.env.PAYFAST_MERCHANT_KEY || (isSandbox ? "46f0cd694581a" : "")
-  ).trim();
+  const merchantId = (process.env.PAYFAST_MERCHANT_ID || "").trim();
+  const merchantKey = (process.env.PAYFAST_MERCHANT_KEY || "").trim();
   const passphrase = (process.env.PAYFAST_PASSPHRASE || "").trim();
 
   const processUrl = isSandbox
