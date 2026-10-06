@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 
-function payfastEncode(value: string): string {
+function payfastUrlEncode(value: string): string {
   return encodeURIComponent(value)
     .replace(/%20/g, "+")
     .replace(/[!'()*~]/g, (char) => {
@@ -12,36 +12,33 @@ function payfastEncode(value: string): string {
     });
 }
 
-function generatePayfastSignature(
+function generatePayfastITNSignature(
   data: Record<string, string>,
   passphrase: string
 ): string {
-  const parts: string[] = [];
+  let parameterString = "";
 
   for (const key of Object.keys(data)) {
     if (key === "signature") {
-      continue;
+      break;
     }
 
-    const value = String(data[key] ?? "").trim();
+    const value = data[key] ?? "";
 
-    if (value !== "") {
-      parts.push(
-        `${key}=${payfastEncode(value)}`
-      );
-    }
+    parameterString +=
+      `${key}=${payfastUrlEncode(value)}&`;
   }
 
-  let signatureString = parts.join("&");
+  parameterString = parameterString.slice(0, -1);
 
-  if (passphrase.trim() !== "") {
-    signatureString +=
-      `&passphrase=${payfastEncode(passphrase.trim())}`;
+  if (passphrase !== "") {
+    parameterString +=
+      `&passphrase=${payfastUrlEncode(passphrase)}`;
   }
 
   return crypto
     .createHash("md5")
-    .update(signatureString)
+    .update(parameterString)
     .digest("hex")
     .toLowerCase();
 }
@@ -141,9 +138,8 @@ export default async function handler(
       process.env.PAYFAST_MERCHANT_ID || ""
     ).trim();
 
-    const passphrase = (
-      process.env.PAYFAST_PASSPHRASE || ""
-    ).trim();
+    const passphrase =
+      process.env.PAYFAST_PASSPHRASE || "";
 
     if (!expectedMerchantId || !passphrase) {
       console.error(
@@ -167,7 +163,7 @@ export default async function handler(
     }
 
     const calculatedSignature =
-      generatePayfastSignature(
+      generatePayfastITNSignature(
         itnData,
         passphrase
       );
@@ -184,6 +180,7 @@ export default async function handler(
           calculatedSignature,
           merchantId,
           paymentId: mPaymentId,
+          fieldOrder: Object.keys(itnData),
         }
       );
 
@@ -275,9 +272,7 @@ export default async function handler(
     if (
       !Number.isFinite(grossAmount) ||
       !Number.isFinite(expectedAmount) ||
-      Math.abs(
-        grossAmount - expectedAmount
-      ) > 0.1
+      Math.abs(grossAmount - expectedAmount) > 0.1
     ) {
       console.error(
         "PayFast amount mismatch",
@@ -345,8 +340,6 @@ export default async function handler(
     );
 
     res.statusCode = 500;
-    res.end(
-      "Error processing notification"
-    );
+    res.end("Error processing notification");
   }
 }
