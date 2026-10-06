@@ -1,6 +1,29 @@
-import type { IncomingMessage, ServerResponse } from "http";
+import type { IncomingMessage } from "http";
+import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
-import { generatePayfastSignature } from "../../src/lib/payfastHelper";
+
+function generatePayfastSignature(
+  data: Record<string, string | number | undefined | null>,
+  passphrase?: string
+): string {
+  let pfOutput = "";
+
+  for (const key of Object.keys(data)) {
+    if (key === "signature") continue;
+    const rawVal = data[key];
+    if (rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== "") {
+      const valStr = String(rawVal).trim();
+      pfOutput += `${key}=${encodeURIComponent(valStr).replace(/%20/g, "+")}&`;
+    }
+  }
+
+  let getString = pfOutput.slice(0, -1);
+  if (passphrase && passphrase.trim()) {
+    getString += `&passphrase=${encodeURIComponent(passphrase.trim()).replace(/%20/g, "+")}`;
+  }
+
+  return crypto.createHash("md5").update(getString).digest("hex");
+}
 
 // Read request body helper
 async function getJsonBody(req: IncomingMessage): Promise<any> {

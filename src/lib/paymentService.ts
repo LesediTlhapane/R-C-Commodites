@@ -115,7 +115,19 @@ class PayfastPaymentProvider {
         }),
       });
 
-      const data = await response.json();
+      let data: any = null;
+      try {
+        const text = await response.text();
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        return {
+          success: false,
+          method: "card_payfast",
+          paymentReference: params.orderNumber,
+          paymentStatus: "pending",
+          error: `Payment service error (${response.status || "network"}). Your order is saved; you may retry or choose Direct Bank EFT.`,
+        };
+      }
 
       if (!response.ok || !data.success) {
         return {
