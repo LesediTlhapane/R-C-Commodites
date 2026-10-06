@@ -2,6 +2,12 @@ import type { IncomingMessage } from "http";
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 
+function pfUrlEncode(val: string | number): string {
+  return encodeURIComponent(String(val).trim())
+    .replace(/%20/g, "+")
+    .replace(/[!\x27()*~]/g, (c) => "%" + c.charCodeAt(0).toString(16).toUpperCase());
+}
+
 function generatePayfastSignature(
   data: Record<string, string | number | undefined | null>,
   passphrase?: string
@@ -12,14 +18,13 @@ function generatePayfastSignature(
     if (key === "signature") continue;
     const rawVal = data[key];
     if (rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== "") {
-      const valStr = String(rawVal).trim();
-      pfOutput += `${key}=${encodeURIComponent(valStr).replace(/%20/g, "+")}&`;
+      pfOutput += `${key}=${pfUrlEncode(rawVal)}&`;
     }
   }
 
   let getString = pfOutput.slice(0, -1);
   if (passphrase && passphrase.trim()) {
-    getString += `&passphrase=${encodeURIComponent(passphrase.trim()).replace(/%20/g, "+")}`;
+    getString += `&passphrase=${pfUrlEncode(passphrase.trim())}`;
   }
 
   return crypto.createHash("md5").update(getString).digest("hex");
@@ -62,7 +67,7 @@ export default async function handler(req: any, res: any) {
     }
 
     const supabaseUrl = process.env.VITE_SUPABASE_URL || "https://rbcmjltpokzgkxitoljo.supabase.co";
-    const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || "sb_publishable_siAm5B-hzfdAnBwDkwsBzg_5Lbp7vrZ").trim();
+    const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || "[REDACTED]").trim();
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const { data: order, error: orderErr } = await supabase
