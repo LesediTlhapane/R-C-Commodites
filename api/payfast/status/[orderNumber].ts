@@ -2,7 +2,14 @@ import { createClient } from "@supabase/supabase-js";
 
 export default async function handler(req: any, res: any) {
   try {
-    const { orderNumber } = req.query;
+    let orderNumber = req.query?.orderNumber;
+
+    if (!orderNumber && req.url) {
+      const match = req.url.match(/\/api\/payfast\/status\/([^/?#]+)/i);
+      if (match) {
+        orderNumber = decodeURIComponent(match[1]);
+      }
+    }
 
     if (!orderNumber) {
       res.statusCode = 400;
