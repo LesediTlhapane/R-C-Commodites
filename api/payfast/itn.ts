@@ -1,69 +1,79 @@
-
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 
-function pfUrlEncode(value: string | number): string {
-  return encodeURIComponent(String(value).trim())
+function payfastEncode(value: string): string {
+  return encodeURIComponent(value)
     .replace(/%20/g, "+")
-    .replace(/[!\x27()*~]/g, (char) => {
-      return "%" + char.charCodeAt(0).toString(16).toUpperCase();
+    .replace(/[!'()*~]/g, (char) => {
+      return (
+        "%" +
+        char.charCodeAt(0).toString(16).toUpperCase()
+      );
     });
 }
 
 function generatePayfastSignature(
-  data: Record<string, string | number | undefined | null>,
-  passphrase?: string
+  data: Record<string, string>,
+  passphrase: string
 ): string {
-  let pfOutput = "";
+  const parts: string[] = [];
 
   for (const key of Object.keys(data)) {
     if (key === "signature") {
       continue;
     }
 
-    const rawVal = data[key];
+    const value = String(data[key] ?? "").trim();
 
-    if (
-      rawVal !== undefined &&
-      rawVal !== null &&
-      String(rawVal).trim() !== ""
-    ) {
-      pfOutput += `${key}=${pfUrlEncode(rawVal)}&`;
+    if (value !== "") {
+      parts.push(
+        `${key}=${payfastEncode(value)}`
+      );
     }
   }
 
-  let getString = pfOutput.slice(0, -1);
+  let signatureString = parts.join("&");
 
-  if (passphrase && passphrase.trim()) {
-    getString += `&passphrase=${pfUrlEncode(passphrase.trim())}`;
+  if (passphrase.trim() !== "") {
+    signatureString +=
+      `&passphrase=${payfastEncode(passphrase.trim())}`;
   }
 
   return crypto
     .createHash("md5")
-    .update(getString)
-    .digest("hex");
+    .update(signatureString)
+    .digest("hex")
+    .toLowerCase();
 }
 
 async function getRequestBody(
   req: any
 ): Promise<Record<string, string>> {
-  // Vercel may already have parsed the request body.
   if (
     req.body &&
     typeof req.body === "object" &&
     !Buffer.isBuffer(req.body)
   ) {
-    return req.body as Record<string, string>;
+    const result: Record<string, string> = {};
+
+    for (const [key, value] of Object.entries(req.body)) {
+      result[key] = String(value ?? "");
+    }
+
+    return result;
   }
 
-  // Vercel may provide the body as a string.
   if (typeof req.body === "string") {
     const params = new URLSearchParams(req.body);
+    const result: Record<string, string> = {};
 
-    return Object.fromEntries(params.entries());
+    for (const [key, value] of params.entries()) {
+      result[key] = value;
+    }
+
+    return result;
   }
 
-  // Fallback for an unparsed Node request stream.
   return new Promise((resolve, reject) => {
     let body = "";
 
@@ -74,8 +84,13 @@ async function getRequestBody(
     req.on("end", () => {
       try {
         const params = new URLSearchParams(body);
+        const result: Record<string, string> = {};
 
-        resolve(Object.fromEntries(params.entries()));
+        for (const [key, value] of params.entries()) {
+          result[key] = value;
+        }
+
+        resolve(result);
       } catch (error) {
         reject(error);
       }
@@ -85,8 +100,10 @@ async function getRequestBody(
   });
 }
 
-export default async function handler(req: any, res: any) {
-  // PayFast ITN must use POST.
+export default async function handler(
+  req: any,
+  res: any
+) {
   if (req.method !== "POST") {
     res.statusCode = 405;
     res.setHeader("Allow", "POST");
@@ -103,72 +120,93 @@ export default async function handler(req: any, res: any) {
       merchantId: itnData.merchant_id,
     });
 
-    const m_payment_id = itnData.m_payment_id;
-    const pf_payment_id = itnData.pf_payment_id;
-    const payment_status = itnData.payment_status;
-    const amount_gross = itnData.amount_gross;
-    const merchant_id = itnData.merchant_id;
+    const mPaymentId = itnData.m_payment_id;
+    const pfPaymentId = itnData.pf_payment_id;
+    const paymentStatus = itnData.payment_status;
+    const amountGross = itnData.amount_gross;
+    const merchantId = itnData.merchant_id;
     const receivedSignature = itnData.signature;
 
-    // Required PayFast fields.
-    if (!m_payment_id || !receivedSignature) {
+    if (!mPaymentId || !receivedSignature) {
+      console.error(
+        "PayFast ITN missing required fields"
+      );
+
       res.statusCode = 400;
       res.end("Missing required fields");
       return;
     }
 
-    const expectedMerchantId =
-      (process.env.PAYFAST_MERCHANT_ID || "").trim();
+    const expectedMerchantId = (
+      process.env.PAYFAST_MERCHANT_ID || ""
+    ).trim();
 
-    const passphrase =
-      (process.env.PAYFAST_PASSPHRASE || "").trim();
+    const passphrase = (
+      process.env.PAYFAST_PASSPHRASE || ""
+    ).trim();
 
-    // PayFast configuration must exist.
     if (!expectedMerchantId || !passphrase) {
-      console.error("PayFast credentials are not configured");
+      console.error(
+        "PayFast credentials are not configured"
+      );
 
       res.statusCode = 500;
       res.end("PayFast configuration error");
       return;
     }
 
-    // Confirm the ITN belongs to our PayFast merchant account.
-    if (merchant_id !== expectedMerchantId) {
-      console.error("Invalid PayFast merchant ID");
+    if (merchantId !== expectedMerchantId) {
+      console.error("Invalid PayFast merchant ID", {
+        received: merchantId,
+        expected: expectedMerchantId,
+      });
 
       res.statusCode = 400;
       res.end("Invalid merchant ID");
       return;
     }
 
-    // Verify the PayFast ITN signature.
-    const calculatedSignature = generatePayfastSignature(
-      itnData,
-      passphrase
+    const calculatedSignature =
+      generatePayfastSignature(
+        itnData,
+        passphrase
+      );
+
+    if (
+      calculatedSignature !==
+      receivedSignature.toLowerCase()
+    ) {
+      console.error(
+        "PayFast ITN signature mismatch",
+        {
+          receivedSignature:
+            receivedSignature.toLowerCase(),
+          calculatedSignature,
+          merchantId,
+          paymentId: mPaymentId,
+        }
+      );
+
+      res.statusCode = 400;
+      res.end("Invalid signature");
+      return;
+    }
+
+    console.log(
+      "PayFast ITN signature verified",
+      {
+        paymentId: mPaymentId,
+      }
     );
 
- if (
-  calculatedSignature.toLowerCase() !==
-  receivedSignature.toLowerCase()
-) {
-  console.error("PayFast ITN signature mismatch", {
-    receivedSignature,
-    calculatedSignature,
-    merchantId: merchant_id,
-    paymentId: m_payment_id,
-  });
-
-  res.statusCode = 400;
-  res.end("Invalid signature");
-  return;
-}
-    // Supabase configuration.
-    const supabaseUrl =
+    const supabaseUrl = (
       process.env.VITE_SUPABASE_URL ||
-      "https://rbcmjltpokzgkxitoljo.supabase.co";
+      "https://rbcmjltpokzgkxitoljo.supabase.co"
+    ).trim();
 
-    const supabaseKey =
-      (process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+    const supabaseKey = (
+      process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+    ).trim();
 
     if (!supabaseKey) {
       console.error(
@@ -180,7 +218,6 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
-    // Never use a publishable/anon key for the ITN server function.
     if (supabaseKey.startsWith("sb_publishable_")) {
       console.error(
         "Invalid Supabase key configured for ITN"
@@ -196,20 +233,21 @@ export default async function handler(req: any, res: any) {
       supabaseKey
     );
 
-    // Find the order using the PayFast payment ID.
-    const { data: order, error: orderErr } =
-      await supabase
-        .from("orders")
-        .select(
-          "id, order_number, total, payment_status, status"
-        )
-        .eq("order_number", m_payment_id)
-        .maybeSingle();
+    const {
+      data: order,
+      error: orderError,
+    } = await supabase
+      .from("orders")
+      .select(
+        "id, order_number, total, payment_status, status"
+      )
+      .eq("order_number", mPaymentId)
+      .maybeSingle();
 
-    if (orderErr) {
+    if (orderError) {
       console.error(
         "Supabase order lookup failed",
-        orderErr
+        orderError
       );
 
       res.statusCode = 500;
@@ -220,7 +258,7 @@ export default async function handler(req: any, res: any) {
     if (!order) {
       console.error(
         "PayFast order not found",
-        m_payment_id
+        mPaymentId
       );
 
       res.statusCode = 404;
@@ -228,46 +266,52 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
-    // Confirm the PayFast amount matches the order total.
-    const grossAmount = parseFloat(
-      amount_gross || "0"
+    const grossAmount = Number.parseFloat(
+      amountGross || "0"
     );
 
     const expectedAmount = Number(order.total);
 
     if (
       !Number.isFinite(grossAmount) ||
-      Math.abs(grossAmount - expectedAmount) > 0.1
+      !Number.isFinite(expectedAmount) ||
+      Math.abs(
+        grossAmount - expectedAmount
+      ) > 0.1
     ) {
-      console.error("PayFast amount mismatch", {
-        received: grossAmount,
-        expected: expectedAmount,
-        orderNumber: m_payment_id,
-      });
+      console.error(
+        "PayFast amount mismatch",
+        {
+          received: grossAmount,
+          expected: expectedAmount,
+          orderNumber: mPaymentId,
+        }
+      );
 
       res.statusCode = 400;
       res.end("Amount mismatch");
       return;
     }
 
-    // Mark the order as paid when PayFast confirms COMPLETE.
-    if (payment_status === "COMPLETE") {
+    if (paymentStatus === "COMPLETE") {
       const { error: updateError } =
         await supabase
           .from("orders")
           .update({
             payment_status: "paid",
             payment_reference:
-              pf_payment_id ||
-              "PF-" + m_payment_id,
+              pfPaymentId ||
+              `PF-${mPaymentId}`,
             payment_transaction_id:
-              pf_payment_id || null,
-            paid_at: new Date().toISOString(),
+              pfPaymentId || null,
+            paid_at:
+              new Date().toISOString(),
             status:
               order.status === "pending"
                 ? "processing"
                 : order.status,
-            updated_at: new Date().toISOString(),
+            updated_at:
+              new Date().toISOString(),
           })
           .eq("id", order.id);
 
@@ -284,11 +328,14 @@ export default async function handler(req: any, res: any) {
 
       console.log(
         "PayFast payment confirmed",
-        m_payment_id
+        {
+          orderNumber: mPaymentId,
+          pfPaymentId,
+          amount: grossAmount,
+        }
       );
     }
 
-    // PayFast requires a successful HTTP response.
     res.statusCode = 200;
     res.end("OK");
   } catch (error) {
@@ -298,6 +345,8 @@ export default async function handler(req: any, res: any) {
     );
 
     res.statusCode = 500;
-    res.end("Error processing notification");
+    res.end(
+      "Error processing notification"
+    );
   }
 }
