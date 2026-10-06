@@ -1,5 +1,14 @@
+
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
+
+function pfUrlEncode(value: string | number): string {
+  return encodeURIComponent(String(value).trim())
+    .replace(/%20/g, "+")
+    .replace(/[!\x27()*~]/g, (char) => {
+      return "%" + char.charCodeAt(0).toString(16).toUpperCase();
+    });
+}
 
 function generatePayfastSignature(
   data: Record<string, string | number | undefined | null>,
@@ -8,7 +17,9 @@ function generatePayfastSignature(
   let pfOutput = "";
 
   for (const key of Object.keys(data)) {
-    if (key === "signature") continue;
+    if (key === "signature") {
+      continue;
+    }
 
     const rawVal = data[key];
 
@@ -17,22 +28,14 @@ function generatePayfastSignature(
       rawVal !== null &&
       String(rawVal).trim() !== ""
     ) {
-      const value = String(rawVal).trim();
-
-      pfOutput +=
-        key +
-        "=" +
-        encodeURIComponent(value).replace(/%20/g, "+") +
-        "&";
+      pfOutput += `${key}=${pfUrlEncode(rawVal)}&`;
     }
   }
 
   let getString = pfOutput.slice(0, -1);
 
   if (passphrase && passphrase.trim()) {
-    getString +=
-      "&passphrase=" +
-      encodeURIComponent(passphrase.trim()).replace(/%20/g, "+");
+    getString += `&passphrase=${pfUrlEncode(passphrase.trim())}`;
   }
 
   return crypto
@@ -83,6 +86,7 @@ async function getRequestBody(
 }
 
 export default async function handler(req: any, res: any) {
+  // PayFast ITN must use POST.
   if (req.method !== "POST") {
     res.statusCode = 405;
     res.setHeader("Allow", "POST");
@@ -106,6 +110,7 @@ export default async function handler(req: any, res: any) {
     const merchant_id = itnData.merchant_id;
     const receivedSignature = itnData.signature;
 
+    // Required PayFast fields.
     if (!m_payment_id || !receivedSignature) {
       res.statusCode = 400;
       res.end("Missing required fields");
@@ -118,20 +123,25 @@ export default async function handler(req: any, res: any) {
     const passphrase =
       (process.env.PAYFAST_PASSPHRASE || "").trim();
 
+    // PayFast configuration must exist.
     if (!expectedMerchantId || !passphrase) {
       console.error("PayFast credentials are not configured");
+
       res.statusCode = 500;
       res.end("PayFast configuration error");
       return;
     }
 
+    // Confirm the ITN belongs to our PayFast merchant account.
     if (merchant_id !== expectedMerchantId) {
       console.error("Invalid PayFast merchant ID");
+
       res.statusCode = 400;
       res.end("Invalid merchant ID");
       return;
     }
 
+    // Verify the PayFast ITN signature.
     const calculatedSignature = generatePayfastSignature(
       itnData,
       passphrase
@@ -142,11 +152,13 @@ export default async function handler(req: any, res: any) {
       receivedSignature.toLowerCase()
     ) {
       console.error("Invalid PayFast ITN signature");
+
       res.statusCode = 400;
       res.end("Invalid signature");
       return;
     }
 
+    // Supabase configuration.
     const supabaseUrl =
       process.env.VITE_SUPABASE_URL ||
       "https://rbcmjltpokzgkxitoljo.supabase.co";
@@ -164,6 +176,7 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
+    // Never use a publishable/anon key for the ITN server function.
     if (supabaseKey.startsWith("sb_publishable_")) {
       console.error(
         "Invalid Supabase key configured for ITN"
@@ -179,6 +192,7 @@ export default async function handler(req: any, res: any) {
       supabaseKey
     );
 
+    // Find the order using the PayFast payment ID.
     const { data: order, error: orderErr } =
       await supabase
         .from("orders")
@@ -210,6 +224,7 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
+    // Confirm the PayFast amount matches the order total.
     const grossAmount = parseFloat(
       amount_gross || "0"
     );
@@ -231,6 +246,7 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
+    // Mark the order as paid when PayFast confirms COMPLETE.
     if (payment_status === "COMPLETE") {
       const { error: updateError } =
         await supabase
@@ -268,10 +284,14 @@ export default async function handler(req: any, res: any) {
       );
     }
 
+    // PayFast requires a successful HTTP response.
     res.statusCode = 200;
     res.end("OK");
   } catch (error) {
-    console.error("PayFast ITN error", error);
+    console.error(
+      "PayFast ITN error",
+      error
+    );
 
     res.statusCode = 500;
     res.end("Error processing notification");
