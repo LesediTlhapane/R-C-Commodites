@@ -13,8 +13,10 @@ import {
   UserCheck,
   ChevronRight,
   Wrench,
+  Bell,
 } from "lucide-react";
 import { useAdminAuth } from "../../context/AdminAuthContext";
+import { useAdminOrderNotification } from "../../context/AdminOrderNotificationContext";
 import { useRouter } from "../../lib/router";
 import logoAsset from "../../assets/rc-logo.png";
 import vredesteinLogo from "../../assets/vredestein-logo.png";
@@ -36,6 +38,8 @@ const navItems = [
 
 export function AdminLayout({ children, activePath }: AdminLayoutProps) {
   const { user, signOut } = useAdminAuth();
+  const { unacknowledgedCount, latestNotification, dismissNotification, viewOrder } =
+    useAdminOrderNotification();
   const { navigate } = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -61,13 +65,28 @@ export function AdminLayout({ children, activePath }: AdminLayoutProps) {
           </div>
         </div>
 
-        <button
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="p-2 rounded-lg bg-neutral-800 text-neutral-300 hover:text-white cursor-pointer"
-          aria-label="Toggle navigation menu"
-        >
-          {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-        </button>
+        <div className="flex items-center gap-2">
+          {unacknowledgedCount > 0 && (
+            <button
+              onClick={() => handleNav("/admin/orders")}
+              className="relative p-2 rounded-lg bg-red-950/80 border border-red-800 text-red-300 hover:text-white"
+              aria-label="New orders awaiting review"
+            >
+              <ShoppingCart size={18} />
+              <span className="absolute -top-1 -right-1 px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-red-600 text-white animate-pulse">
+                {unacknowledgedCount}
+              </span>
+            </button>
+          )}
+
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="p-2 rounded-lg bg-neutral-800 text-neutral-300 hover:text-white cursor-pointer"
+            aria-label="Toggle navigation menu"
+          >
+            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
       </header>
 
       {/* SIDEBAR NAVIGATION (Desktop & Mobile Drawer) */}
@@ -129,6 +148,12 @@ export function AdminLayout({ children, activePath }: AdminLayoutProps) {
                 <div className="flex items-center gap-3">
                   <Icon size={16} className={isActive ? "text-white" : "text-neutral-400"} />
                   <span>{item.name}</span>
+                  {item.path === "/admin/orders" && unacknowledgedCount > 0 && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-mono font-bold text-white shadow-xs animate-pulse">
+                      <span>🔴</span>
+                      <span>{unacknowledgedCount}</span>
+                    </span>
+                  )}
                 </div>
                 {isActive && <ChevronRight size={14} className="opacity-80" />}
               </button>
@@ -208,6 +233,16 @@ export function AdminLayout({ children, activePath }: AdminLayoutProps) {
           </div>
 
           <div className="flex items-center gap-4">
+            {unacknowledgedCount > 0 && (
+              <button
+                onClick={() => handleNav("/admin/orders")}
+                className="inline-flex items-center gap-2 rounded-full bg-red-950/90 border border-red-700/80 px-3 py-1 text-xs font-bold text-red-200 hover:bg-red-900 transition-colors cursor-pointer shadow-sm animate-pulse"
+              >
+                <span>🔔</span>
+                <span>{unacknowledgedCount} New Order{unacknowledgedCount > 1 ? "s" : ""}</span>
+              </button>
+            )}
+
             <button
               onClick={() => handleNav("/")}
               className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-neutral-400 hover:text-white transition-colors cursor-pointer"
@@ -222,6 +257,62 @@ export function AdminLayout({ children, activePath }: AdminLayoutProps) {
             </div>
           </div>
         </div>
+
+        {/* FLOATING REALTIME NEW ORDER NOTIFICATION BANNER */}
+        {latestNotification && (
+          <aside
+            aria-label="New order notification"
+            className="fixed top-4 right-4 z-50 max-w-sm w-full rounded-2xl border border-amber-500/80 bg-neutral-900/95 backdrop-blur-xl p-4 text-white shadow-2xl shadow-black animate-in slide-in-from-top-4 duration-300"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="size-9 rounded-full bg-amber-500/20 text-amber-400 grid place-items-center shrink-0">
+                  <Bell size={18} className="animate-bounce" />
+                </div>
+                <div>
+                  <div className="text-[10px] font-mono uppercase tracking-wider text-amber-400 font-bold">
+                    🔔 New Order
+                  </div>
+                  <div className="text-sm font-black font-display text-white">
+                    Order {latestNotification.orderNumber}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={dismissNotification}
+                className="p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors"
+                title="Dismiss notification"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="mt-3 pl-11 space-y-1 text-xs">
+              <div className="font-bold text-white text-sm">{latestNotification.customerName}</div>
+              <div className="text-primary font-display font-black text-base">
+                R{latestNotification.total.toLocaleString("en-ZA")}.00
+              </div>
+              <div className="text-[11px] font-semibold text-amber-300">
+                Payment: {latestNotification.paymentStatus}
+              </div>
+            </div>
+
+            <div className="mt-4 flex items-center justify-end gap-2 pl-11">
+              <button
+                onClick={dismissNotification}
+                className="px-3 py-1.5 rounded-lg border border-neutral-700 text-xs font-medium text-neutral-300 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
+              >
+                Dismiss
+              </button>
+              <button
+                onClick={() => viewOrder(latestNotification)}
+                className="px-3.5 py-1.5 rounded-lg bg-primary hover:bg-primary-hover text-xs font-bold uppercase tracking-wider text-white shadow-md transition-all cursor-pointer"
+              >
+                View Order →
+              </button>
+            </div>
+          </aside>
+        )}
 
         {/* Page Content */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">

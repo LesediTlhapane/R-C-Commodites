@@ -714,6 +714,64 @@ app.post("/api/orders/create", async (req: Request, res: Response): Promise<void
   }
 });
 
+/**
+ * PATCH /api/orders/:id
+ * Updates an order status or payment status (Admin action).
+ */
+app.patch("/api/orders/:id", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { status, payment_status } = req.body;
+
+    const payload: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+
+    if (status !== undefined) {
+      payload.status = status;
+    }
+
+    if (payment_status !== undefined) {
+      const allowed = ["pending", "paid", "refunded", "cancelled", "failed"];
+      if (!allowed.includes(payment_status)) {
+        res.status(400).json({ success: false, error: `Invalid payment status: ${payment_status}` });
+        return;
+      }
+      payload.payment_status = payment_status;
+      if (payment_status === "paid") {
+        payload.paid_at = new Date().toISOString();
+      }
+    }
+
+    const { data, error } = await supabase
+      .from("orders")
+      .update(payload)
+      .eq("id", id)
+      .select("*, customer:customers(*), order_items(*)")
+      .maybeSingle();
+
+    if (error) {
+      console.warn("[server orders] Supabase update warning:", error.message);
+    }
+
+    for (const [num, sOrd] of serverOrders.entries()) {
+      if (sOrd.id === id) {
+        serverOrders.set(num, { ...sOrd, ...payload });
+      }
+    }
+
+    res.json({ success: true, order: data });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Error updating order";
+    res.status(500).json({ success: false, error: msg });
+  }
+});
+
+app.put("/api/orders/:id", async (req: Request, res: Response): Promise<void> => {
+  req.method = "PATCH";
+  app._router.handle(req, res, () => {});
+});
+
 // ==============================================================================
 // ACCESSORIES & PRODUCT QUANTITY MANAGEMENT ENDPOINTS
 // ==============================================================================

@@ -8,6 +8,7 @@ import { AdminProducts } from "./AdminProducts";
 import { AdminCombos } from "./AdminCombos";
 import { AdminAccessories } from "./AdminAccessories";
 import { AdminOrders } from "./AdminOrders";
+import { AdminOrderNotificationProvider } from "../../context/AdminOrderNotificationContext";
 
 export function AdminRoutes() {
   const { pathname } = useRouter();
@@ -45,9 +46,11 @@ export function AdminRoutes() {
 
   return (
     <AdminGuard>
-      <AdminLayout activePath={activePath}>
-        {content}
-      </AdminLayout>
+      <AdminOrderNotificationProvider>
+        <AdminLayout activePath={activePath}>
+          {content}
+        </AdminLayout>
+      </AdminOrderNotificationProvider>
     </AdminGuard>
   );
 }

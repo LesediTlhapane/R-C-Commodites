@@ -377,7 +377,9 @@ export async function getAdminOrders(): Promise<DbOrder[]> {
 /**
  * Real-time subscription to orders table changes for Admin Portal.
  */
-export function subscribeToOrdersRealtime(onOrdersChanged: () => void): () => void {
+export function subscribeToOrdersRealtime(
+  onOrdersChanged: (payload?: { eventType: string; new: any; old: any }) => void
+): () => void {
   if (!isSupabaseConfigured()) return () => {};
 
   const channelName = `admin-orders-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
@@ -390,8 +392,12 @@ export function subscribeToOrdersRealtime(onOrdersChanged: () => void): () => vo
         schema: "public",
         table: "orders",
       },
-      () => {
-        onOrdersChanged();
+      (payload) => {
+        onOrdersChanged({
+          eventType: payload.eventType,
+          new: payload.new,
+          old: payload.old,
+        });
       }
     )
     .subscribe();
@@ -408,6 +414,30 @@ export async function updateOrderStatus(
   orderId: string,
   status: "pending" | "processing" | "dispatched" | "completed" | "cancelled"
 ): Promise<void> {
+  // 1. First attempt backend update route (handles server cache & service authority)
+  try {
+    const res = await fetch(`/api/orders/${orderId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    if (res.ok) return;
+  } catch {
+    // Continue to fallback
+  }
+
+  try {
+    const res = await fetch("/api/orders/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId, status }),
+    });
+    if (res.ok) return;
+  } catch {
+    // Continue to fallback
+  }
+
+  // 2. Direct Supabase client update fallback
   if (!isSupabaseConfigured()) return;
 
   const { error } = await supabase
@@ -422,16 +452,50 @@ export async function updateOrderStatus(
 
 /**
  * Updates an order's payment status in Supabase (Admin action).
+ * Strictly complies with orders_payment_status_check database constraint.
  */
 export async function updateOrderPaymentStatus(
   orderId: string,
-  paymentStatus: "unpaid" | "pending" | "paid" | "refunded"
+  paymentStatus: "pending" | "paid" | "refunded" | "cancelled" | "failed"
 ): Promise<void> {
+  // 1. First attempt backend update route (handles server cache & service authority)
+  try {
+    const res = await fetch(`/api/orders/${orderId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ payment_status: paymentStatus }),
+    });
+    if (res.ok) return;
+  } catch {
+    // Continue to fallback
+  }
+
+  try {
+    const res = await fetch("/api/orders/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId, payment_status: paymentStatus }),
+    });
+    if (res.ok) return;
+  } catch {
+    // Continue to fallback
+  }
+
+  // 2. Direct Supabase client update fallback
   if (!isSupabaseConfigured()) return;
+
+  const payload: Record<string, unknown> = {
+    payment_status: paymentStatus,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (paymentStatus === "paid") {
+    payload.paid_at = new Date().toISOString();
+  }
 
   const { error } = await supabase
     .from("orders")
-    .update({ payment_status: paymentStatus, updated_at: new Date().toISOString() })
+    .update(payload)
     .eq("id", orderId);
 
   if (error) {
