@@ -147,17 +147,21 @@ export default async function handler(req: any, res: any) {
       passphrase
     );
 
-    if (
-      calculatedSignature.toLowerCase() !==
-      receivedSignature.toLowerCase()
-    ) {
-      console.error("Invalid PayFast ITN signature");
+ if (
+  calculatedSignature.toLowerCase() !==
+  receivedSignature.toLowerCase()
+) {
+  console.error("PayFast ITN signature mismatch", {
+    receivedSignature,
+    calculatedSignature,
+    merchantId: merchant_id,
+    paymentId: m_payment_id,
+  });
 
-      res.statusCode = 400;
-      res.end("Invalid signature");
-      return;
-    }
-
+  res.statusCode = 400;
+  res.end("Invalid signature");
+  return;
+}
     // Supabase configuration.
     const supabaseUrl =
       process.env.VITE_SUPABASE_URL ||
