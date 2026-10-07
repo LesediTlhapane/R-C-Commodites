@@ -89,18 +89,18 @@ export function Hero({ onScrollTo }: HeroProps) {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.08, ease: PERFORMANCE_EASE }}
-              className="mb-4 flex flex-wrap items-center gap-2.5"
+              className="mb-5 flex flex-wrap items-center gap-3"
             >
-              <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-foreground-muted shadow-xs">
+              <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3.5 py-1.5 text-xs sm:text-[13px] font-bold uppercase tracking-[0.16em] text-foreground-muted shadow-xs">
                 <span className="size-2 rounded-full bg-primary animate-pulse" />
                 Made in the Netherlands · Since 1909
               </div>
-              <div className="inline-flex items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-950 px-2.5 py-1 shadow-xs">
-                <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-400">Official</span>
+              <div className="inline-flex items-center gap-2.5 rounded-xl border border-neutral-800 bg-neutral-950 px-3.5 py-1.5 shadow-md">
+                <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-neutral-300">Official</span>
                 <img
                   src={vredesteinLogoAsset}
                   alt="Vredestein"
-                  className="h-4.5 w-auto object-contain brightness-115"
+                  className="h-6 sm:h-6.5 w-auto object-contain brightness-115"
                 />
               </div>
             </motion.div>
