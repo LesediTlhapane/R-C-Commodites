@@ -105,22 +105,12 @@ export function Hero({ onScrollTo }: HeroProps) {
               </div>
             </motion.div>
 
-            {/* Stage 2: Headline */}
-            <motion.h1
-              initial={{ opacity: 0, y: 22 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.65, delay: 0.18, ease: PERFORMANCE_EASE }}
-              className="font-display text-4xl uppercase leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl text-foreground"
-            >
-              Superbike tyres, <span className="text-primary">fitted properly.</span>
-            </motion.h1>
-
-            {/* Stage 3: Engineering Narrative */}
+            {/* Narrative */}
             <motion.p
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.28, ease: PERFORMANCE_EASE }}
-              className="mt-5 max-w-xl text-base sm:text-lg leading-relaxed text-foreground-muted"
+              transition={{ duration: 0.6, delay: 0.18, ease: PERFORMANCE_EASE }}
+              className="mt-2 max-w-xl text-base sm:text-lg leading-relaxed text-foreground-muted"
             >
               Official South African distributor of genuine <strong className="text-foreground font-bold">Vredestein Centauro NS</strong> (Super Sport) and <strong className="text-foreground font-bold">Centauro ST</strong> (Sport Touring) motorcycle tyres. Zero-degree steel belt engineering delivering supreme grip, high mileage, and unshakable stability.
             </motion.p>
@@ -347,4 +337,3 @@ export function Hero({ onScrollTo }: HeroProps) {
     </section>
   );
 }
-
