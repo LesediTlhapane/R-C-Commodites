@@ -1,4 +1,4 @@
-import { Tag, ShoppingBag, ShieldCheck, Phone, Check, AlertCircle, CheckCircle2, HelpCircle } from "lucide-react";
+import { Tag, ShoppingBag, ShieldCheck, Phone, MessageSquare, Check, AlertCircle, CheckCircle2, HelpCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import type { Range, TyreProduct } from "../types";
 import { ShopButton } from "./ShopButton";
@@ -184,12 +184,40 @@ export function TyresCatalog({
               <p className="mt-2 text-xs text-neutral-300 leading-relaxed">
                 Direct European performance engineering by Vredestein. Stored and fitted in Selby, Johannesburg.
               </p>
-              <a
-                href="tel:+27832273237"
-                className="mt-4 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400 hover:text-white transition-colors"
-              >
-                <Phone size={14} /> Costa: +27 83 227 3237
-              </a>
+              <div className="mt-4 flex flex-col gap-2">
+                <div className="flex flex-wrap gap-x-4 gap-y-2">
+                  <a
+                    href="tel:+27832273237"
+                    className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400 hover:text-white transition-colors"
+                  >
+                    <Phone size={14} /> Call Costa: +27 83 227 3237
+                  </a>
+                  <a
+                    href="https://wa.me/27832273237?text=Hi%20Costa,%20I%20have%20a%20tyre%20enquiry"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400 hover:text-white transition-colors"
+                  >
+                    <MessageSquare size={14} /> WhatsApp Costa
+                  </a>
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-2">
+                  <a
+                    href="tel:+27834671394"
+                    className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400 hover:text-white transition-colors"
+                  >
+                    <Phone size={14} /> Call Dhevan: +27 83 4671394
+                  </a>
+                  <a
+                    href="https://wa.me/27834671394?text=Hi%2C%20I%20have%20a%20tyre%20enquiry"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400 hover:text-white transition-colors"
+                  >
+                    <MessageSquare size={14} /> WhatsApp Dhevan
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
         </div>

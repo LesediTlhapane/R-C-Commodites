@@ -71,6 +71,16 @@ export function CombosSection({ combos, onAddCombo }: CombosSectionProps) {
             >
               <Phone size={14} className="text-amber-400" /> WhatsApp Costa
             </motion.a>
+            <motion.a
+              whileHover={{ scale: 1.03, transition: { duration: 0.15, ease: PERFORMANCE_EASE } }}
+              whileTap={{ scale: 0.97 }}
+              href="https://wa.me/27834671394?text=Hi%2C%20I'm%20interested%20in%20the%20Vredestein%20Centauro%20Tyre%20Combos"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-md bg-neutral-900 border border-neutral-700 px-4 py-3 text-xs font-bold uppercase tracking-wider text-neutral-200 hover:border-amber-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <Phone size={14} className="text-amber-400" /> WhatsApp Dhevan
+            </motion.a>
           </div>
         </motion.div>
 
@@ -78,7 +88,7 @@ export function CombosSection({ combos, onAddCombo }: CombosSectionProps) {
         <div className="mt-10 grid gap-6 md:grid-cols-3">
           {combos.map((combo, idx) => {
             const waMessage = encodeURIComponent(
-              `Hi Costa (R&C Commodities), I would like to order the Vredestein Centauro Combo:\n\n• ${combo.frontSize} + ${combo.rearSize}\n• Combo Price: R${combo.price.toLocaleString("en-ZA")}.00 (Save R${combo.savings.toLocaleString("en-ZA")})\n\nPlease confirm availability and fitment/delivery.`
+              `Hi R&C Commodities, I would like to order the Vredestein Centauro Combo:\n\n• ${combo.frontSize} + ${combo.rearSize}\n• Combo Price: R${combo.price.toLocaleString("en-ZA")}.00 (Save R${combo.savings.toLocaleString("en-ZA")})\n\nPlease confirm availability and fitment/delivery.`
             );
 
             return (
@@ -226,21 +236,34 @@ export function CombosSection({ combos, onAddCombo }: CombosSectionProps) {
                       </button>
                     )}
 
-                    <motion.a
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.97 }}
-                      href={`https://wa.me/27832273237?text=${waMessage}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`flex items-center justify-center gap-2 rounded-md px-3 py-3 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer ${
-                        !combo.purchasable
-                          ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-md font-black"
-                          : "border border-neutral-700 bg-neutral-800 text-white hover:bg-neutral-700"
-                      }`}
-                    >
-                      <Phone size={14} className={!combo.purchasable ? "text-white" : "text-emerald-400"} />
-                      {!combo.purchasable ? "Enquire via WhatsApp" : "WhatsApp"}
-                    </motion.a>
+                    <div className="grid grid-cols-2 gap-2">
+                      <motion.a
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.97 }}
+                        href={`https://wa.me/27832273237?text=${waMessage}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`flex items-center justify-center gap-2 rounded-md px-3 py-3 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer ${
+                          !combo.purchasable
+                            ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-md font-black"
+                            : "border border-neutral-700 bg-neutral-800 text-white hover:bg-neutral-700"
+                        }`}
+                      >
+                        <Phone size={14} className={!combo.purchasable ? "text-white" : "text-emerald-400"} />
+                        WhatsApp Costa
+                      </motion.a>
+                      <motion.a
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.97 }}
+                        href={`https://wa.me/27834671394?text=${waMessage}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 rounded-md border border-neutral-700 bg-neutral-800 px-3 py-3 text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-neutral-700 cursor-pointer"
+                      >
+                        <Phone size={14} className="text-emerald-400" />
+                        WhatsApp Dhevan
+                      </motion.a>
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -262,12 +285,20 @@ export function CombosSection({ combos, onAddCombo }: CombosSectionProps) {
               <strong className="text-white">100% Genuine European Vredestein Stock:</strong> All combo sets include matching production batches, stored in temperature-controlled facilities in Selby, Johannesburg.
             </span>
           </div>
-          <a
-            href="tel:+27832273237"
-            className="shrink-0 text-amber-400 font-bold uppercase tracking-wider hover:text-amber-300 flex items-center gap-1.5"
-          >
-            <Phone size={14} /> Selby Fitment Advice: +27 83 227 3237
-          </a>
+          <div className="flex shrink-0 flex-col gap-2">
+            <a
+              href="tel:+27832273237"
+              className="text-amber-400 font-bold uppercase tracking-wider hover:text-amber-300 flex items-center gap-1.5"
+            >
+              <Phone size={14} /> Costa: +27 83 227 3237
+            </a>
+            <a
+              href="tel:+27834671394"
+              className="text-amber-400 font-bold uppercase tracking-wider hover:text-amber-300 flex items-center gap-1.5"
+            >
+              <Phone size={14} /> Dhevan: +27 83 4671394
+            </a>
+          </div>
         </motion.div>
       </div>
     </motion.section>

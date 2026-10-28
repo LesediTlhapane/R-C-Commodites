@@ -124,12 +124,21 @@ export function AccessoriesSection({ accessories, onAddAccessory }: AccessoriesS
               {accessories.length} {accessories.length === 1 ? "Product" : "Products"} Available
             </span>
             <a
-              href="https://wa.me/27832273237?text=Hi%20Costa,%20I'm%20looking%20for%20specific%20motorcycle%20accessories"
+              href="https://wa.me/27832273237?text=Hi%20R%26C%20Commodities,%20I'm%20looking%20for%20specific%20motorcycle%20accessories"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-md bg-neutral-900 border border-neutral-800 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-neutral-800 hover:border-neutral-700 transition-colors shadow-sm cursor-pointer"
             >
-              <span>Custom Part Enquiry</span>
+              <span>Custom Part Enquiry · Costa</span>
+              <ExternalLink size={14} />
+            </a>
+            <a
+              href="https://wa.me/27834671394?text=Hi%2C%20I'm%20looking%20for%20specific%20motorcycle%20accessories"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-md bg-neutral-900 border border-neutral-800 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-neutral-800 hover:border-neutral-700 transition-colors shadow-sm cursor-pointer"
+            >
+              <span>Custom Part Enquiry · Dhevan</span>
               <ExternalLink size={14} />
             </a>
           </div>
@@ -221,18 +230,32 @@ export function AccessoriesSection({ accessories, onAddAccessory }: AccessoriesS
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-3">
               <a
-                href="https://wa.me/27832273237?text=Hi%20Costa,%20I'm%20looking%20for%20specific%20motorcycle%20accessories%20from%20R&C%20Commodities"
+                href="https://wa.me/27832273237?text=Hi%20R%26C%20Commodities,%20I'm%20looking%20for%20specific%20motorcycle%20accessories"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-5 py-3 text-xs font-black uppercase tracking-wider text-white hover:bg-emerald-700 transition-colors shadow-md cursor-pointer"
               >
-                <ExternalLink size={14} /> Custom Accessory Enquiry (WhatsApp)
+                <ExternalLink size={14} /> WhatsApp Costa
+              </a>
+              <a
+                href="https://wa.me/27834671394?text=Hi%2C%20I'm%20looking%20for%20specific%20motorcycle%20accessories%20from%20R%26C%20Commodities"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-5 py-3 text-xs font-black uppercase tracking-wider text-white hover:bg-emerald-700 transition-colors shadow-md cursor-pointer"
+              >
+                <ExternalLink size={14} /> WhatsApp Dhevan
               </a>
               <a
                 href="tel:+27832273237"
                 className="inline-flex items-center gap-2 rounded-md border border-neutral-700 bg-neutral-800 px-4 py-3 text-xs font-bold uppercase tracking-wider text-white hover:bg-neutral-700 transition-colors cursor-pointer"
               >
                 Call Costa (+27 83 227 3237)
+              </a>
+              <a
+                href="tel:+27834671394"
+                className="inline-flex items-center gap-2 rounded-md border border-neutral-700 bg-neutral-800 px-4 py-3 text-xs font-bold uppercase tracking-wider text-white hover:bg-neutral-700 transition-colors cursor-pointer"
+              >
+                Call Dhevan (+27 83 4671394)
               </a>
             </div>
           </div>
@@ -366,16 +389,28 @@ export function AccessoriesSection({ accessories, onAddAccessory }: AccessoriesS
                         <ShoppingBag size={13} /> Add
                       </button>
                     ) : (
-                      <a
-                        href={`https://wa.me/27832273237?text=${encodeURIComponent(
-                          `Hi Costa, please verify stock for accessory: ${item.title}`
-                        )}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 rounded-md border border-neutral-700 bg-neutral-800/80 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-300 hover:text-white hover:border-neutral-600 transition"
-                      >
-                        Enquire
-                      </a>
+                      <div className="flex flex-wrap gap-1">
+                        <a
+                          href={`https://wa.me/27832273237?text=${encodeURIComponent(
+                            `Hi R&C Commodities, please verify stock for accessory: ${item.title}`
+                          )}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 rounded-md border border-neutral-700 bg-neutral-800/80 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-300 hover:text-white hover:border-neutral-600 transition"
+                        >
+                          WhatsApp Costa
+                        </a>
+                        <a
+                          href={`https://wa.me/27834671394?text=${encodeURIComponent(
+                            `Hi, please verify stock for accessory: ${item.title}`
+                          )}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 rounded-md border border-neutral-700 bg-neutral-800/80 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-300 hover:text-white hover:border-neutral-600 transition"
+                        >
+                          WhatsApp Dhevan
+                        </a>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -508,16 +543,28 @@ export function AccessoriesSection({ accessories, onAddAccessory }: AccessoriesS
                       <span>Add to Cart</span>
                     </button>
                   ) : (
-                    <a
-                      href={`https://wa.me/27832273237?text=${encodeURIComponent(
-                        `Hi Costa, I would like to enquire about ordering: ${activeModalItem.title}`
-                      )}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-xs font-black uppercase tracking-wider text-white hover:bg-emerald-500 transition-colors shadow-lg"
-                    >
-                      <span>Enquire on WhatsApp</span>
-                    </a>
+                    <>
+                      <a
+                        href={`https://wa.me/27832273237?text=${encodeURIComponent(
+                          `Hi R&C Commodities, I would like to enquire about ordering: ${activeModalItem.title}`
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-xs font-black uppercase tracking-wider text-white hover:bg-emerald-500 transition-colors shadow-lg"
+                      >
+                        <span>WhatsApp Costa</span>
+                      </a>
+                      <a
+                        href={`https://wa.me/27834671394?text=${encodeURIComponent(
+                          `Hi, I would like to enquire about ordering: ${activeModalItem.title}`
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-xs font-black uppercase tracking-wider text-white hover:bg-emerald-500 transition-colors shadow-lg"
+                      >
+                        <span>WhatsApp Dhevan</span>
+                      </a>
+                    </>
                   )}
 
                   <button

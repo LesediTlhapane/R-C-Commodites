@@ -68,25 +68,56 @@ export function Footer() {
               Contact &amp; Selby Workshop
             </p>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              <a
-                href="tel:+27832273237"
-                className="group flex gap-3 text-sm transition-colors hover:text-amber-300"
-              >
-                <Phone size={18} className="mt-0.5 shrink-0 text-primary group-hover:scale-110 transition-transform" />
-                <span>
-                  <strong className="block text-white">Phone</strong>
-                  <span className="mt-1 block text-neutral-400">+27 83 227 3237</span>
-                </span>
-              </a>
+              <div className="space-y-2">
+                <a
+                  href="tel:+27832273237"
+                  className="group flex gap-3 text-sm transition-colors hover:text-amber-300"
+                >
+                  <Phone size={18} className="mt-0.5 shrink-0 text-primary group-hover:scale-110 transition-transform" />
+                  <span>
+                    <strong className="block text-white">Costa</strong>
+                    <span className="mt-1 block text-neutral-400">+27 83 227 3237</span>
+                  </span>
+                </a>
+                <a
+                  href="https://wa.me/27832273237?text=Hi%20Costa,%20I%20have%20an%20enquiry%20for%20R%26C%20Commodities"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-8 block text-xs text-neutral-400 transition-colors hover:text-amber-300"
+                >
+                  WhatsApp Costa
+                </a>
+              </div>
+
+              <div className="space-y-2">
+                <a
+                  href="tel:+27834671394"
+                  className="group flex gap-3 text-sm transition-colors hover:text-amber-300"
+                >
+                  <Phone size={18} className="mt-0.5 shrink-0 text-primary group-hover:scale-110 transition-transform" />
+                  <span>
+                    <strong className="block text-white">Dhevan</strong>
+                    <span className="mt-1 block text-neutral-400">+27 83 4671394</span>
+                  </span>
+                </a>
+                <a
+                  href="https://wa.me/27834671394?text=Hi%2C%20I%20have%20an%20enquiry%20for%20R%26C%20Commodities"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-8 block text-xs text-neutral-400 transition-colors hover:text-amber-300"
+                >
+                  WhatsApp Dhevan
+                </a>
+              </div>
 
               <a
-                href="mailto:costa08@gmail.com"
+                href="mailto:Enquiries@bikesharp.co.za"
                 className="group flex gap-3 text-sm transition-colors hover:text-amber-300"
               >
                 <Mail size={18} className="mt-0.5 shrink-0 text-primary group-hover:scale-110 transition-transform" />
                 <span>
                   <strong className="block text-white">Email</strong>
-                  <span className="mt-1 block text-neutral-400">costa08@gmail.com</span>
+                  <span className="mt-1 block text-neutral-400">Enquiries@bikesharp.co.za</span>
                 </span>
               </a>
 

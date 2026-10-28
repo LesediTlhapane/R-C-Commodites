@@ -7,6 +7,7 @@ import {
   HelpCircle,
   Mail,
   MessageSquare,
+  Phone,
   Sparkles,
   ExternalLink,
 } from "lucide-react";
@@ -53,14 +54,14 @@ const FAQ_DATA: FaqItem[] = [
     id: 4,
     question: "How do I order from the catalogue?",
     answer:
-      "You can place an order by emailing enquiries@bikesharp.co.za or via WhatsApp on 083 467 1394.",
+      "You can place an order by emailing Enquiries@bikesharp.co.za or choosing Costa or Dhevan on WhatsApp below.",
     icon: HelpCircle,
     tag: "Ordering",
     action: {
       type: "contact",
-      email: "enquiries@bikesharp.co.za",
+      email: "Enquiries@bikesharp.co.za",
       whatsapp: "27834671394",
-      whatsappFormatted: "083 467 1394",
+      whatsappFormatted: "+27 83 4671394",
     },
   },
 ];
@@ -192,6 +193,18 @@ export function FaqSection() {
                       {/* Direct Interactive Links for Question 4 (Ordering) */}
                       {faq.action && (
                         <div className="mt-4 flex flex-wrap items-center gap-3 pt-2">
+                          <a
+                            href={`https://wa.me/27832273237?text=${encodeURIComponent(
+                              "Hi, I would like to place an order from the R&C Commodities catalogue."
+                            )}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-md hover:bg-emerald-500 transition-all cursor-pointer active:scale-95"
+                          >
+                            <MessageSquare size={15} />
+                            <span>WhatsApp Costa (+27 83 227 3237)</span>
+                            <ExternalLink size={12} className="opacity-75" />
+                          </a>
                           {faq.action.whatsapp && (
                             <a
                               href={`https://wa.me/${faq.action.whatsapp}?text=${encodeURIComponent(
@@ -202,7 +215,7 @@ export function FaqSection() {
                               className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-md hover:bg-emerald-500 transition-all cursor-pointer active:scale-95"
                             >
                               <MessageSquare size={15} />
-                              <span>WhatsApp ({faq.action.whatsappFormatted})</span>
+                              <span>WhatsApp Dhevan ({faq.action.whatsappFormatted})</span>
                               <ExternalLink size={12} className="opacity-75" />
                             </a>
                           )}
@@ -243,21 +256,44 @@ export function FaqSection() {
 
           <div className="flex flex-wrap items-center gap-3 shrink-0">
             <a
+              href="https://wa.me/27832273237?text=Hi%2C%20I%20have%20an%20enquiry%20regarding%20motorcycle%20tyres"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-md hover:bg-emerald-500 transition-colors"
+            >
+              <MessageSquare size={15} />
+              <span>WhatsApp Costa</span>
+            </a>
+            <a
               href="https://wa.me/27834671394?text=Hi%2C%20I%20have%20an%20enquiry%20regarding%20motorcycle%20tyres"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-md hover:bg-emerald-500 transition-colors"
             >
               <MessageSquare size={15} />
-              <span>WhatsApp: 083 467 1394</span>
+              <span>WhatsApp: +27 83 4671394</span>
             </a>
 
             <a
-              href="mailto:enquiries@bikesharp.co.za"
+              href="mailto:Enquiries@bikesharp.co.za"
               className="inline-flex items-center gap-2 rounded-lg border border-neutral-700 bg-neutral-800 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-neutral-700 transition-colors"
             >
               <Mail size={15} className="text-primary" />
-              <span>enquiries@bikesharp.co.za</span>
+              <span>Enquiries@bikesharp.co.za</span>
+            </a>
+            <a
+              href="tel:+27832273237"
+              className="inline-flex items-center gap-2 rounded-lg border border-neutral-700 bg-neutral-800 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-neutral-700 transition-colors"
+            >
+              <Phone size={15} className="text-primary" />
+              <span>Call Costa</span>
+            </a>
+            <a
+              href="tel:+27834671394"
+              className="inline-flex items-center gap-2 rounded-lg border border-neutral-700 bg-neutral-800 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-neutral-700 transition-colors"
+            >
+              <Phone size={15} className="text-primary" />
+              <span>Call Dhevan</span>
             </a>
           </div>
         </div>

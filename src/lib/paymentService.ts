@@ -17,10 +17,11 @@ export type PaymentStatus = "pending" | "paid" | "failed" | "refunded" | "cancel
 
 export interface BankDetails {
   bankName: string;
-  accountName: string;
   accountNumber: string;
   branchCode: string;
-  branchName: string;
+  swiftCode: string;
+  accountName?: string;
+  branchName?: string;
   reference: string;
 }
 
@@ -49,14 +50,13 @@ export interface PaymentInitResult {
 }
 
 /**
- * Standard Bank South Africa - Official R&C Commodities Selby Account
+ * FNB South Africa EFT account details
  */
 export const OFFICIAL_BANK_DETAILS: Omit<BankDetails, "reference"> = {
-  bankName: "Standard Bank",
-  accountName: "R&C Commodities (Pty) Ltd",
-  accountNumber: "022849102",
-  branchCode: "051001",
-  branchName: "Selby",
+  bankName: "First National Bank",
+  accountNumber: "63004283808",
+  branchCode: "250741",
+  swiftCode: "FIRNZAJJ",
 };
 
 /**
@@ -66,7 +66,7 @@ export const OFFICIAL_BANK_DETAILS: Omit<BankDetails, "reference"> = {
 class EftPaymentProvider {
   id: PaymentMethod = "eft";
   name = "Direct Bank EFT / Electronic Funds Transfer";
-  description = "Immediate payment via online banking to R&C Commodities Standard Bank Selby account.";
+  description = "Transfer directly via EFT to our First National Bank account.";
   isConfigured = true;
   requiresRedirect = false;
 
@@ -80,7 +80,7 @@ class EftPaymentProvider {
         ...OFFICIAL_BANK_DETAILS,
         reference: params.orderNumber,
       },
-      instructions: `Please transfer R${params.amount.toLocaleString("en-ZA")}.00 using reference ${params.orderNumber}. Send proof of payment to Costa on WhatsApp (+27 83 227 3237).`,
+      instructions: `Please transfer R${params.amount.toLocaleString("en-ZA")}.00 using reference ${params.orderNumber}. Send proof of payment to Costa (+27 83 227 3237) or Dhevan (+27 83 4671394) on WhatsApp.`,
     };
   }
 
@@ -184,7 +184,7 @@ const payfastProvider = new PayfastPaymentProvider();
 
 /**
  * Returns available payment methods with their display information.
- * Payfast is the primary online payment provider. Direct Bank EFT is the manual fallback.
+ * Payfast remains available to integrations but is currently hidden in checkout.
  */
 export function getAvailablePaymentMethods(): {
   id: PaymentMethod;
@@ -204,7 +204,7 @@ export function getAvailablePaymentMethods(): {
     {
       id: "eft",
       name: "Direct Bank EFT",
-      description: "Transfer directly to R&C Commodities Selby Standard Bank account.",
+      description: "Transfer directly to our First National Bank account.",
       isConfigured: true,
       badge: "Manual EFT",
     },

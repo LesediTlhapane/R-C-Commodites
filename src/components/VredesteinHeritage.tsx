@@ -1,4 +1,4 @@
-import { Award, Clock3, Layers, Sparkles, ArrowRight, Phone } from "lucide-react";
+import { Award, Clock3, Layers, Sparkles, ArrowRight, Phone, MessageSquare } from "lucide-react";
 import { ShopButton } from "./ShopButton";
 import { vredesteinHeritage } from "../data/products";
 import moodyBikeAsset from "../assets/4298f1d6724ee05cbb8ca427a0471e9c.jpg";
@@ -136,12 +136,40 @@ export function VredesteinHeritage({ onScrollToCombos, onScrollToTyres }: Vredes
                     <span className="text-[11px] text-neutral-400 uppercase tracking-wider block">Official Stockist</span>
                     <strong className="font-display text-sm text-amber-300">R&amp;C Commodities · Selby, JHB</strong>
                   </div>
-                  <a
-                    href="tel:+27832273237"
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-white hover:text-amber-400 uppercase tracking-wider transition-colors"
-                  >
-                    <Phone size={14} className="text-amber-400" /> Costa: +27 83 227 3237
-                  </a>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex flex-wrap gap-x-3 gap-y-2">
+                      <a
+                        href="tel:+27832273237"
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-white hover:text-amber-400 uppercase tracking-wider transition-colors"
+                      >
+                        <Phone size={14} className="text-amber-400" /> Costa: +27 83 227 3237
+                      </a>
+                      <a
+                        href="https://wa.me/27832273237?text=Hi%20Costa,%20I%20have%20a%20tyre%20enquiry"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-white hover:text-amber-400 uppercase tracking-wider transition-colors"
+                      >
+                        <MessageSquare size={14} className="text-amber-400" /> WhatsApp Costa
+                      </a>
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-2">
+                      <a
+                        href="tel:+27834671394"
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-white hover:text-amber-400 uppercase tracking-wider transition-colors"
+                      >
+                        <Phone size={14} className="text-amber-400" /> Dhevan: +27 83 4671394
+                      </a>
+                      <a
+                        href="https://wa.me/27834671394?text=Hi%2C%20I%20have%20a%20tyre%20enquiry"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-white hover:text-amber-400 uppercase tracking-wider transition-colors"
+                      >
+                        <MessageSquare size={14} className="text-amber-400" /> WhatsApp Dhevan
+                      </a>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

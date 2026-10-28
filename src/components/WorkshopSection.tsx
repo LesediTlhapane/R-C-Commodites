@@ -97,12 +97,26 @@ export function WorkshopSection() {
                 <Phone size={16} /> Call Costa (+27 83 227 3237)
               </a>
               <a
-                href="https://wa.me/27832273237?text=Hi%20Costa,%20I%20would%20like%20to%20check%20tyre%20fitment%20for%20my%20motorcycle"
+                href="tel:+27834671394"
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-primary-hover transition-colors shadow-lg active:scale-95"
+              >
+                <Phone size={16} /> Call Dhevan (+27 83 4671394)
+              </a>
+              <a
+                href="https://wa.me/27832273237?text=Hi%20R%26C%20Commodities,%20I%20would%20like%20to%20check%20tyre%20fitment%20for%20my%20motorcycle"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 rounded-md border border-neutral-700 bg-neutral-900/90 px-5 py-3.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-neutral-800 transition-colors backdrop-blur-xs"
               >
-                WhatsApp Fitment Check
+                WhatsApp Costa
+              </a>
+              <a
+                href="https://wa.me/27834671394?text=Hi%2C%20I%20would%20like%20to%20check%20tyre%20fitment%20for%20my%20motorcycle"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-md border border-neutral-700 bg-neutral-900/90 px-5 py-3.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-neutral-800 transition-colors backdrop-blur-xs"
+              >
+                WhatsApp Dhevan
               </a>
             </div>
           </div>

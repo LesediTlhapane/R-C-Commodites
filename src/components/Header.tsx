@@ -104,20 +104,35 @@ export function Header({
           {/* Right: WhatsApp & Phone */}
           <div className="flex items-center gap-4 text-neutral-300">
             <a
-              href="https://wa.me/27832273237?text=Hi%20Costa,%20I%20have%20an%20enquiry%20regarding%20Vredestein%20motorcycle%20tyres"
+              href="https://wa.me/27832273237?text=Hi%20R%26C%20Commodities,%20I%20have%20an%20enquiry%20regarding%20Vredestein%20motorcycle%20tyres"
               target="_blank"
               rel="noopener noreferrer"
               className="text-neutral-300 hover:text-white transition-colors flex items-center gap-1.5"
             >
               <span className="size-1.5 rounded-full bg-emerald-400 inline-block" />
-              <span>WhatsApp Us</span>
+              <span>WhatsApp Costa</span>
+            </a>
+            <a
+              href="https://wa.me/27834671394?text=Hi%2C%20I%20have%20an%20enquiry%20regarding%20Vredestein%20motorcycle%20tyres"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-neutral-300 hover:text-white transition-colors flex items-center gap-1.5"
+            >
+              <span className="size-1.5 rounded-full bg-emerald-400 inline-block" />
+              <span>WhatsApp Dhevan</span>
             </a>
             <span className="hidden sm:inline text-neutral-700">|</span>
             <a
               href="tel:+27832273237"
               className="hidden sm:inline text-neutral-400 hover:text-neutral-200 transition-colors"
             >
-              +27 83 227 3237
+              Call Costa
+            </a>
+            <a
+              href="tel:+27834671394"
+              className="hidden sm:inline text-neutral-400 hover:text-neutral-200 transition-colors"
+            >
+              Call Dhevan
             </a>
           </div>
         </div>
@@ -350,7 +365,7 @@ export function Header({
             {/* Separated Contact Area */}
             <div className="pt-3 mt-2 border-t border-neutral-800/80 flex flex-col gap-2">
               <a
-                href="https://wa.me/27832273237?text=Hi%20Costa,%20I%20have%20an%20enquiry%20regarding%20Vredestein%20motorcycle%20tyres"
+                href="https://wa.me/27832273237?text=Hi%20R%26C%20Commodities,%20I%20have%20an%20enquiry%20regarding%20Vredestein%20motorcycle%20tyres"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-center gap-2 rounded-lg bg-emerald-600/90 hover:bg-emerald-600 px-4 py-2.5 text-xs font-semibold text-white transition-colors"
@@ -358,12 +373,27 @@ export function Header({
                 <span>WhatsApp Costa (+27 83 227 3237)</span>
               </a>
               <a
+                href="https://wa.me/27834671394?text=Hi%2C%20I%20have%20an%20enquiry%20regarding%20Vredestein%20motorcycle%20tyres"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 rounded-lg bg-emerald-600/90 hover:bg-emerald-600 px-4 py-2.5 text-xs font-semibold text-white transition-colors"
+              >
+                <span>WhatsApp Dhevan (+27 83 4671394)</span>
+              </a>
+              <a
                 href="tel:+27832273237"
                 className="flex items-center justify-center gap-2 rounded-lg border border-neutral-800 bg-neutral-900 hover:bg-neutral-850 px-4 py-2.5 text-xs font-semibold text-neutral-200 transition-colors"
               >
                 <Phone size={14} className="text-neutral-400" />
-                <span>Call Workshop</span>
+                  <span>Call Costa (+27 83 227 3237)</span>
               </a>
+                <a
+                  href="tel:+27834671394"
+                  className="flex items-center justify-center gap-2 rounded-lg border border-neutral-800 bg-neutral-900 hover:bg-neutral-850 px-4 py-2.5 text-xs font-semibold text-neutral-200 transition-colors"
+                >
+                  <Phone size={14} className="text-neutral-400" />
+                  <span>Call Dhevan (+27 83 4671394)</span>
+                </a>
             </div>
 
             {/* Mobile Official Vredestein Lockup */}

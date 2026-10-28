@@ -14,7 +14,6 @@ import {
   CheckCircle2,
   Truck,
   ShieldCheck,
-  CreditCard,
   Building,
   Copy,
   Check,
@@ -27,6 +26,7 @@ import {
   initializeOrderPayment,
   submitPayfastPaymentForm,
   fetchServerPaymentStatus,
+  OFFICIAL_BANK_DETAILS,
   type PaymentMethod,
 } from "../lib/paymentService";
 
@@ -75,7 +75,7 @@ export function CartDrawer({
     email: "",
     phone: "",
     deliveryMethod: "Nationwide Delivery",
-    paymentMethod: "card_payfast" as PaymentMethod,
+    paymentMethod: "" as PaymentMethod | "",
     streetAddress: "",
     city: "Johannesburg",
     postalCode: "",
@@ -173,7 +173,7 @@ export function CartDrawer({
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   // Generates authoritative WhatsApp order link using the successfully created order
-  const getWhatsAppLink = (orderRes?: CreateOrderResult | null) => {
+  const getWhatsAppLink = (phoneNumber: string, orderRes?: CreateOrderResult | null) => {
     if (orderRes) {
       const orderLines = orderRes.items.map(
         (item) =>
@@ -181,7 +181,7 @@ export function CartDrawer({
             item.price * item.quantity
           ).toLocaleString("en-ZA")}.00`
       );
-      const prefix = `Hi Costa (R&C Commodities),\n\nI have placed Order #${orderRes.orderNumber} on the website:\n\n${orderLines.join(
+      const prefix = `Hi R&C Commodities,\n\nI have placed Order #${orderRes.orderNumber} on the website:\n\n${orderLines.join(
         "\n"
       )}\n\nTotal: R${orderRes.total.toLocaleString("en-ZA")}.00\nCustomer: ${orderRes.customer.firstName} ${
         orderRes.customer.lastName
@@ -194,7 +194,7 @@ export function CartDrawer({
       }\nFulfilment: Free Nationwide Delivery\nDelivery Address: ${
         orderRes.deliveryAddress || `${formData.streetAddress}, ${formData.city} ${formData.postalCode}`.trim()
       }\n\nPlease confirm order receipt and delivery schedule.`;
-      return `https://wa.me/27832273237?text=${encodeURIComponent(prefix)}`;
+      return `https://wa.me/${phoneNumber}?text=${encodeURIComponent(prefix)}`;
     }
 
     // Direct pre-checkout enquiry link using current cart items
@@ -204,12 +204,12 @@ export function CartDrawer({
           item.price * item.quantity
         ).toLocaleString("en-ZA")}.00`
     );
-    const prefix = `Hi Costa (R&C Commodities),\n\nI would like to order the following motorcycle tyres/combos:\n\n${lines.join(
+    const prefix = `Hi R&C Commodities,\n\nI would like to order the following motorcycle tyres/combos:\n\n${lines.join(
       "\n"
     )}\n\nTotal: R${total.toLocaleString(
       "en-ZA"
     )}.00\n\nPlease confirm availability and Free Nationwide Delivery across South Africa.`;
-    return `https://wa.me/27832273237?text=${encodeURIComponent(prefix)}`;
+    return `https://wa.me/${phoneNumber}?text=${encodeURIComponent(prefix)}`;
   };
 
   const handleStartCheckout = async () => {
@@ -267,17 +267,14 @@ export function CartDrawer({
       setFormError("Please enter your delivery city or suburb.");
       return;
     }
+    if (!formData.paymentMethod) {
+      setFormError("Please select Direct Bank EFT to view the banking details and continue.");
+      return;
+    }
 
     setSubmittingOrder(true);
 
     try {
-      const fullShippingAddress = `${formData.streetAddress.trim()}, ${formData.city.trim()}${
-        formData.postalCode.trim() ? ` ${formData.postalCode.trim()}` : ""
-      }`;
-
-      // Initial payment status matching database orders_payment_status_check constraint ('pending')
-      const initialStatus = "pending";
-
       // 1. Authoritative order persistence into Supabase
       const res = await createOrder({
         customer: {
@@ -286,12 +283,16 @@ export function CartDrawer({
           email: formData.email,
           phone: formData.phone,
         },
+        delivery: {
+          address: formData.streetAddress.trim(),
+          city: formData.city.trim(),
+          postalCode: formData.postalCode.trim(),
+        },
         items,
-        deliveryMethod: "Nationwide Delivery",
-        shippingAddress: fullShippingAddress,
+        total,
         notes: formData.notes,
-        paymentMethod: formData.paymentMethod,
-        paymentStatus: initialStatus,
+        paymentMethod:
+          formData.paymentMethod === "card_payfast" ? "card_payfast" : "eft_bank",
       });
 
       // 2. Strictly check database confirmation: never proceed if order not saved!
@@ -350,7 +351,7 @@ export function CartDrawer({
   };
 
   const copyBankDetails = () => {
-    const text = `R&C Commodities (Pty) Ltd\nStandard Bank\nAccount: 022849102\nBranch: Selby (051001)\nReference: ${orderResult?.orderNumber || "RC-ORDER"}`;
+    const text = `Bank: ${OFFICIAL_BANK_DETAILS.bankName}\nBranch Code: ${OFFICIAL_BANK_DETAILS.branchCode}\nAccount Number: ${OFFICIAL_BANK_DETAILS.accountNumber}\nSwift Code: ${OFFICIAL_BANK_DETAILS.swiftCode}\nPayment Reference: ${orderResult?.orderNumber || "Use order number after placing order"}`;
     navigator.clipboard.writeText(text);
     setCopiedBank(true);
     setTimeout(() => setCopiedBank(false), 2500);
@@ -531,7 +532,7 @@ export function CartDrawer({
                     </span>
                   </div>
                   <p className="text-[11px] text-foreground-muted leading-relaxed">
-                    Direct importer pricing from R&amp;C Commodities. Free Nationwide Delivery across South Africa. Pay Online (Apple Pay / Instant EFT / Card) or Direct Bank EFT.
+                    Direct importer pricing from R&amp;C Commodities. Free Nationwide Delivery across South Africa. Pay by Direct Bank EFT.
                   </p>
 
                   <div className="grid grid-cols-1 gap-2.5 pt-1">
@@ -554,13 +555,22 @@ export function CartDrawer({
                     </button>
 
                     <a
-                      href={getWhatsAppLink()}
+                      href={getWhatsAppLink("27832273237")}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex w-full items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 py-3 text-xs font-black uppercase tracking-wider text-white shadow-md transition-all hover:bg-emerald-700 active:scale-98 cursor-pointer"
                     >
                       <MessageSquare size={17} />
-                      <span>Order via WhatsApp Directly</span>
+                      <span>Order via WhatsApp · Costa</span>
+                    </a>
+                    <a
+                      href={getWhatsAppLink("27834671394")}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex w-full items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 py-3 text-xs font-black uppercase tracking-wider text-white shadow-md transition-all hover:bg-emerald-700 active:scale-98 cursor-pointer"
+                    >
+                      <MessageSquare size={17} />
+                      <span>Order via WhatsApp · Dhevan</span>
                     </a>
 
                     <a
@@ -569,6 +579,13 @@ export function CartDrawer({
                     >
                       <Phone size={15} className="text-primary" />
                       <span>Call Costa (+27 83 227 3237)</span>
+                    </a>
+                    <a
+                      href="tel:+27834671394"
+                      className="flex w-full items-center justify-center gap-2 rounded-md border border-neutral-700 bg-neutral-900 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-neutral-800"
+                    >
+                      <Phone size={15} className="text-primary" />
+                      <span>Call Dhevan (+27 83 4671394)</span>
                     </a>
                   </div>
 
@@ -647,7 +664,7 @@ export function CartDrawer({
 
                   <div>
                     <label className="text-[11px] font-bold uppercase text-foreground-muted block mb-1">
-                      Email Address (for Payfast receipt &amp; order confirmation)
+                      Email Address (for order confirmation)
                     </label>
                     <input
                       type="email"
@@ -725,61 +742,19 @@ export function CartDrawer({
                   </div>
                 </div>
 
-                {/* 3. Payment Method: Pay Online (Payfast) or Direct Bank EFT */}
+                {/* 3. Payment Method: Direct Bank EFT */}
                 <div className="space-y-3 pt-2">
                   <div className="flex items-center justify-between">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-foreground-muted flex items-center gap-1.5">
                       <Lock size={13} className="text-primary" />
-                      <span>3. Choose Payment Method</span>
+                      <span>3. Payment Details</span>
                     </h3>
-                    <span className="text-[10px] text-primary font-bold uppercase font-mono">ZAR (Rands)</span>
+                    <span className="text-[10px] text-primary font-bold uppercase font-mono">
+                      Expand EFT to view banking details
+                    </span>
                   </div>
 
                   <div className="grid grid-cols-1 gap-2.5">
-                    {/* OPTION 1: PAY ONLINE (PAYFAST) */}
-                    <label
-                      className={`flex items-start gap-3 p-3.5 rounded-xl border transition-all cursor-pointer ${
-                        formData.paymentMethod === "card_payfast"
-                          ? "border-primary bg-primary/10 shadow-xs"
-                          : "border-border bg-surface-soft hover:border-neutral-400"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        value="card_payfast"
-                        checked={formData.paymentMethod === "card_payfast"}
-                        onChange={() => setFormData({ ...formData, paymentMethod: "card_payfast" })}
-                        className="mt-1 accent-primary"
-                      />
-                      <div className="flex-1">
-                        <div className="text-xs font-bold text-foreground uppercase flex items-center justify-between">
-                          <div className="flex items-center gap-1.5">
-                            <CreditCard size={14} className="text-primary" />
-                            <span>Pay Online (Payfast)</span>
-                          </div>
-                          <span className="text-[9px] bg-primary/20 text-primary border border-primary/30 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
-                            Instant
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-foreground-muted mt-1 leading-snug">
-                          Pay instantly using <strong>Apple Pay</strong>, <strong>Instant EFT</strong>, <strong>Visa</strong>, <strong>Mastercard</strong>, or <strong>Capitec Pay</strong>.
-                        </p>
-                        <div className="flex items-center gap-2 mt-2 text-[10px] text-neutral-400">
-                          <span className="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[9px]">
-                            Apple Pay
-                          </span>
-                          <span className="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[9px]">
-                            Instant EFT
-                          </span>
-                          <span className="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[9px]">
-                            Credit / Debit Cards
-                          </span>
-                        </div>
-                      </div>
-                    </label>
-
-                    {/* OPTION 2: DIRECT BANK EFT (STANDARD BANK SELBY) */}
                     <label
                       className={`flex items-start gap-3 p-3.5 rounded-xl border transition-all cursor-pointer ${
                         formData.paymentMethod === "eft"
@@ -799,33 +774,47 @@ export function CartDrawer({
                         <div className="text-xs font-bold text-foreground uppercase flex items-center justify-between">
                           <div className="flex items-center gap-1.5">
                             <Building size={14} className="text-primary" />
-                            <span>Direct Bank EFT (Standard Bank)</span>
+                            <span>Direct Bank EFT (First National Bank)</span>
                           </div>
                           <span className="text-[9px] bg-neutral-800 text-neutral-300 border border-neutral-700 px-2 py-0.5 rounded font-bold uppercase">
                             Manual
                           </span>
                         </div>
                         <p className="text-[11px] text-foreground-muted mt-1 leading-snug">
-                          Transfer directly to our official Standard Bank Selby account using your order reference number.
+                          Transfer directly to our FNB account. Banking details are shown below.
                         </p>
                       </div>
                     </label>
+                    {formData.paymentMethod === "eft" && (
+                      <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                            <Building size={14} className="text-primary" />
+                            <span>FNB Banking Details</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={copyBankDetails}
+                            className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline cursor-pointer"
+                          >
+                            {copiedBank ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                            <span>{copiedBank ? "Copied!" : "Copy Details"}</span>
+                          </button>
+                        </div>
+                        <div className="rounded-lg bg-surface-soft p-3 font-mono text-[11px] space-y-1 text-foreground">
+                          <div><strong>Bank:</strong> {OFFICIAL_BANK_DETAILS.bankName}</div>
+                          <div><strong>Branch Code:</strong> {OFFICIAL_BANK_DETAILS.branchCode}</div>
+                          <div><strong>Account Number:</strong> {OFFICIAL_BANK_DETAILS.accountNumber}</div>
+                          <div><strong>Swift Code:</strong> {OFFICIAL_BANK_DETAILS.swiftCode}</div>
+                        </div>
+                        <p className="text-[10px] text-foreground-muted leading-tight">
+                          Use your order number as the payment reference. Your order number will appear after placing your order.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Motorcycle & Fitment Notes */}
-                <div className="space-y-2 pt-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-foreground-muted">
-                    4. Bike Model / Fitment Notes (Optional)
-                  </h3>
-                  <textarea
-                    rows={2}
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    placeholder="e.g. 2023 BMW S1000RR — Requesting Saturday morning fitment advice."
-                    className="w-full rounded-lg border border-border bg-surface-soft p-2.5 text-xs text-foreground placeholder-foreground-muted/60 focus:border-primary focus:outline-none resize-none"
-                  />
-                </div>
               </div>
 
               {/* Order Submission Footer */}
@@ -996,16 +985,16 @@ export function CartDrawer({
 
                   <div className="rounded-lg bg-surface-soft p-3 font-mono text-[11px] space-y-1 text-foreground">
                     <div>
-                      <strong>Bank:</strong> Standard Bank
+                      <strong>Bank:</strong> {OFFICIAL_BANK_DETAILS.bankName}
                     </div>
                     <div>
-                      <strong>Account:</strong> R&amp;C Commodities (Pty) Ltd
+                      <strong>Account No:</strong> {OFFICIAL_BANK_DETAILS.accountNumber}
                     </div>
                     <div>
-                      <strong>Account No:</strong> 022849102
+                      <strong>Branch Code:</strong> {OFFICIAL_BANK_DETAILS.branchCode}
                     </div>
                     <div>
-                      <strong>Branch Code:</strong> 051001 (Selby)
+                      <strong>Swift Code:</strong> {OFFICIAL_BANK_DETAILS.swiftCode}
                     </div>
                     <div>
                       <strong>Payment Reference:</strong>{" "}
@@ -1022,13 +1011,22 @@ export function CartDrawer({
               {/* Direct WhatsApp Confirmation Button (Uses real order total) */}
               <div className="space-y-2 pt-1">
                 <a
-                  href={getWhatsAppLink(orderResult)}
+                  href={getWhatsAppLink("27832273237", orderResult)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex w-full items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 py-3.5 text-xs font-black uppercase tracking-wider text-white shadow-lg transition-all hover:bg-emerald-700 active:scale-98 cursor-pointer"
                 >
                   <MessageSquare size={17} />
                   <span>Send Order to Costa via WhatsApp</span>
+                </a>
+                <a
+                  href={getWhatsAppLink("27834671394", orderResult)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex w-full items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 py-3.5 text-xs font-black uppercase tracking-wider text-white shadow-lg transition-all hover:bg-emerald-700 active:scale-98 cursor-pointer"
+                >
+                  <MessageSquare size={17} />
+                  <span>Send Order to Dhevan via WhatsApp</span>
                 </a>
 
                 <button
@@ -1040,9 +1038,13 @@ export function CartDrawer({
               </div>
 
               <div className="text-center pt-2 text-[11px] text-foreground-muted">
-                Need urgent fitment advice? Call Costa directly on{" "}
+                Need urgent fitment advice? Call{" "}
                 <a href="tel:+27832273237" className="text-primary font-bold hover:underline">
-                  +27 83 227 3237
+                  Costa (+27 83 227 3237)
+                </a>{" "}
+                or{" "}
+                <a href="tel:+27834671394" className="text-primary font-bold hover:underline">
+                  Dhevan (+27 83 4671394)
                 </a>
               </div>
             </div>

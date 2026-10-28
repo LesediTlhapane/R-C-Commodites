@@ -721,7 +721,7 @@ export function AdminOrders() {
                     <span className="font-semibold text-white">
                       {selectedOrder.payment_method === "card_payfast"
                         ? "Payfast Online (Card / Instant EFT)"
-                        : "Direct Bank EFT (Standard Bank Selby)"}
+                        : "Direct Bank EFT (First National Bank)"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between pb-2 border-b border-neutral-800/60">
@@ -775,7 +775,7 @@ export function AdminOrders() {
                         <strong className="text-white font-mono font-bold">
                           R{Number(selectedOrder.total).toLocaleString("en-ZA")}.00
                         </strong>{" "}
-                        reflects in the R&amp;C Commodities Standard Bank account before fulfilling the order.
+                        reflects in the R&amp;C Commodities First National Bank account before fulfilling the order.
                       </p>
                       <button
                         onClick={() => handleMarkAsPaid(selectedOrder.id, selectedOrder.order_number)}
