@@ -94,15 +94,8 @@ export function Header({
       {/* LAYER 1 — UTILITY BAR */}
       <div className="border-b border-neutral-800/70 bg-neutral-900/60 py-1.5 px-4 text-xs font-normal">
         <div className="mx-auto flex max-w-[1400px] items-center justify-between text-[11px]">
-          {/* Left: Workshop & Fitment Available */}
-          <div className="flex items-center gap-2 text-neutral-400">
-            <span className="font-medium text-neutral-200">Selby • Johannesburg</span>
-            <span className="text-neutral-600 font-light">•</span>
-            <span className="text-neutral-400">Workshop &amp; Fitment Available</span>
-          </div>
-
           {/* Right: WhatsApp & Phone */}
-          <div className="flex items-center gap-4 text-neutral-300">
+          <div className="ml-auto flex items-center gap-4 text-neutral-300">
             <a
               href="https://wa.me/27832273237?text=Hi%20R%26C%20Commodities,%20I%20have%20an%20enquiry%20regarding%20Vredestein%20motorcycle%20tyres"
               target="_blank"
