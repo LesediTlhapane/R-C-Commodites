@@ -80,7 +80,12 @@ export function Hero({ onScrollTo }: HeroProps) {
 
   return (
     <section className="relative overflow-hidden border-b border-border bg-background/50">
-      <div className="mx-auto max-w-[1400px] px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-16">
+      <div className="hero-particles" aria-hidden="true">
+        {Array.from({ length: 32 }, (_, index) => (
+          <span className="hero-particle" key={index} />
+        ))}
+      </div>
+      <div className="relative z-10 mx-auto max-w-[1400px] px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-16">
         <div className="grid items-center gap-10 lg:grid-cols-12">
           {/* Left Hero Narrative — 4-Stage Performance Entrance */}
           <div className="lg:col-span-6 flex flex-col justify-center">
@@ -328,7 +333,7 @@ export function Hero({ onScrollTo }: HeroProps) {
               <Phone size={19} />
             </span>
             <div>
-              <strong className="block font-display text-sm uppercase text-foreground">Talk to Costa</strong>
+              <strong className="block font-display text-sm uppercase text-foreground">Talk to Costa or Dhevan</strong>
               <span className="text-xs text-foreground-muted leading-relaxed">Direct expert sizing advice via phone or WhatsApp.</span>
             </div>
           </motion.div>
