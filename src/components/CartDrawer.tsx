@@ -18,8 +18,9 @@ import {
   Copy,
   Check,
   Lock,
+  Download,
 } from "lucide-react";
-import type { CartItem } from "../types";
+import type { CartItem, DbOrder } from "../types";
 import { validateCartStock } from "../lib/productService";
 import { createOrder, type CreateOrderResult } from "../lib/orderService";
 import {
@@ -63,6 +64,8 @@ export function CartDrawer({
   const [redirectingToPayfast, setRedirectingToPayfast] = useState(false);
   const [orderResult, setOrderResult] = useState<CreateOrderResult | null>(null);
   const [copiedBank, setCopiedBank] = useState(false);
+  const [downloadingInvoice, setDownloadingInvoice] = useState(false);
+  const [invoiceDownloadError, setInvoiceDownloadError] = useState<string | null>(null);
 
   // Live payment status verification for Payfast ITN confirmation
   const [verifiedPaymentStatus, setVerifiedPaymentStatus] = useState<string>("pending");
@@ -113,6 +116,8 @@ export function CartDrawer({
               return {
                 success: true,
                 orderNumber: st.order.order_number,
+                invoiceNumber: st.order.invoice_number || `INV-${st.order.order_number}`,
+                invoiceIssuedAt: st.order.invoice_issued_at || st.order.created_at,
                 orderId: st.order.id,
                 subtotal: st.order.subtotal,
                 total: st.order.total,
@@ -355,6 +360,69 @@ export function CartDrawer({
     navigator.clipboard.writeText(text);
     setCopiedBank(true);
     setTimeout(() => setCopiedBank(false), 2500);
+  };
+
+  const handleDownloadInvoice = async () => {
+    if (!orderResult) return;
+
+    setDownloadingInvoice(true);
+    setInvoiceDownloadError(null);
+    const issuedAt = orderResult.invoiceIssuedAt || new Date().toISOString();
+    const paymentStatusValue =
+      verifiedPaymentStatus === "paid" ? "paid" : orderResult.paymentStatus;
+    const paymentStatuses: DbOrder["payment_status"][] = [
+      "pending",
+      "paid",
+      "refunded",
+      "cancelled",
+      "failed",
+    ];
+    const paymentStatus =
+      paymentStatuses.find((status) => status === paymentStatusValue) || "pending";
+    const order: DbOrder = {
+      id: orderResult.orderId || orderResult.orderNumber,
+      order_number: orderResult.orderNumber,
+      customer_id: null,
+      status: "pending",
+      subtotal: orderResult.subtotal,
+      delivery_fee: 0,
+      total: orderResult.total,
+      payment_method: orderResult.paymentMethod,
+      payment_status: paymentStatus,
+      delivery_method: orderResult.deliveryMethod,
+      delivery_address_line1: orderResult.deliveryAddress,
+      payment_reference: orderResult.paymentReference,
+      invoice_number: orderResult.invoiceNumber || `INV-${orderResult.orderNumber}`,
+      invoice_issued_at: issuedAt,
+      customer_name: `${orderResult.customer.firstName} ${orderResult.customer.lastName}`.trim(),
+      customer_email: orderResult.customer.email,
+      customer_phone: orderResult.customer.phone,
+      created_at: issuedAt,
+      updated_at: issuedAt,
+      order_items: orderResult.items.map((item, index) => ({
+        id: `${orderResult.orderNumber}-${index + 1}`,
+        order_id: orderResult.orderId || orderResult.orderNumber,
+        product_id: null,
+        product_name: `${item.title} ${item.subtitle}`.trim(),
+        quantity: item.quantity,
+        unit_price: item.price,
+        subtotal: item.price * item.quantity,
+      })),
+    };
+
+    try {
+      const { downloadPurchaseInvoicePdf } = await import("../lib/invoiceDownload");
+      const result = await downloadPurchaseInvoicePdf(order);
+      if (!result.success) {
+        setInvoiceDownloadError(result.error || "Unable to download your invoice.");
+      }
+    } catch (err: unknown) {
+      setInvoiceDownloadError(
+        err instanceof Error ? err.message : "Unable to download your invoice."
+      );
+    } finally {
+      setDownloadingInvoice(false);
+    }
   };
 
   const handleCloseAndReset = () => {
@@ -879,6 +947,24 @@ export function CartDrawer({
                   Your order reference number is{" "}
                   <strong className="font-mono text-primary font-bold">{orderResult.orderNumber}</strong>.
                 </p>
+                <button
+                  type="button"
+                  onClick={handleDownloadInvoice}
+                  disabled={downloadingInvoice}
+                  className="mt-4 inline-flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 text-xs font-black uppercase tracking-wider text-white shadow-lg transition-all hover:bg-primary-hover disabled:cursor-wait disabled:opacity-60"
+                >
+                  {downloadingInvoice ? (
+                    <RefreshCw size={15} className="animate-spin" />
+                  ) : (
+                    <Download size={15} />
+                  )}
+                  <span>{downloadingInvoice ? "Preparing Invoice..." : "Download Invoice (PDF)"}</span>
+                </button>
+                {invoiceDownloadError && (
+                  <p role="alert" className="mt-2 text-xs text-red-400">
+                    {invoiceDownloadError}
+                  </p>
+                )}
               </div>
 
               {/* Fulfilment & Contact Summary */}

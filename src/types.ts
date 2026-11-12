@@ -88,6 +88,8 @@ export interface DbCustomer {
   last_name: string | null;
   email: string | null;
   phone: string | null;
+  address?: string | null;
+  city?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -112,6 +114,10 @@ export interface DbOrder {
   customer_phone?: string | null;
   notes?: string | null;
   payment_reference?: string | null;
+  invoice_number?: string | null;
+  invoice_issued_at?: string | null;
+  paid_at?: string | null;
+  payment_transaction_id?: string | null;
   created_at: string;
   updated_at: string;
   customer?: DbCustomer | null;

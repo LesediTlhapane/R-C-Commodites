@@ -28,6 +28,8 @@ export interface CreateOrderPayload {
 export interface CreateOrderResult {
   success: boolean;
   orderNumber: string;
+  invoiceNumber: string;
+  invoiceIssuedAt: string;
   orderId?: string;
   subtotal: number;
   total: number;
@@ -68,6 +70,8 @@ function generateOrderNumber(): string {
  */
 export async function createOrder(payload: CreateOrderPayload): Promise<CreateOrderResult> {
   const orderNumber = generateOrderNumber();
+  const invoiceNumber = `INV-${orderNumber}`;
+  const invoiceIssuedAt = new Date().toISOString();
   const paymentRef = payload.paymentReference || orderNumber;
   const deliveryAddress = `${payload.delivery.address}, ${payload.delivery.city} ${payload.delivery.postalCode}`.trim();
   const subtotal = payload.total;
@@ -75,6 +79,8 @@ export async function createOrder(payload: CreateOrderPayload): Promise<CreateOr
   const fallbackResult: CreateOrderResult = {
     success: true,
     orderNumber,
+    invoiceNumber,
+    invoiceIssuedAt,
     subtotal,
     total: payload.total,
     paymentMethod: payload.paymentMethod,
@@ -132,6 +138,8 @@ export async function createOrder(payload: CreateOrderPayload): Promise<CreateOr
     // 2. Insert order record into public.orders
     const orderRecord = {
       order_number: orderNumber,
+      invoice_number: invoiceNumber,
+      invoice_issued_at: invoiceIssuedAt,
       customer_id: customerId,
       status: "pending",
       payment_status: "pending",
@@ -180,6 +188,8 @@ export async function createOrder(payload: CreateOrderPayload): Promise<CreateOr
     return {
       success: true,
       orderNumber,
+      invoiceNumber,
+      invoiceIssuedAt,
       orderId,
       subtotal,
       total: payload.total,
@@ -285,7 +295,7 @@ export async function getAdminOrders(): Promise<DbOrder[]> {
 /**
  * Real-time subscription to orders table changes for Admin Portal.
  */
-export function subscribeToOrdersRealtime(onUpdate: () => void): () => void {
+export function subscribeToOrdersRealtime(onUpdate: (payload?: any) => void): () => void {
   if (!isSupabaseConfigured()) return () => {};
 
   const channel = supabase
@@ -293,8 +303,8 @@ export function subscribeToOrdersRealtime(onUpdate: () => void): () => void {
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "orders" },
-      () => {
-        onUpdate();
+      (payload) => {
+        onUpdate(payload);
       }
     )
     .subscribe();
@@ -368,11 +378,12 @@ export async function updateOrderStatus(
 /**
  * Updates an order's payment status in Supabase (Admin action).
  * Strictly complies with orders_payment_status_check database constraint.
+ * When paymentStatus is 'paid', generates invoice number and access token hash.
  */
 export async function updateOrderPaymentStatus(
   orderId: string,
   paymentStatus: "pending" | "paid" | "refunded" | "cancelled" | "failed"
-): Promise<void> {
+): Promise<{ success: boolean; invoice?: any; order?: any }> {
   const authHeader = await getAuthHeader();
 
   // 1. First attempt backend update route (handles server cache & service authority)
@@ -382,7 +393,12 @@ export async function updateOrderPaymentStatus(
       headers: { "Content-Type": "application/json", ...authHeader },
       body: JSON.stringify({ payment_status: paymentStatus }),
     });
-    if (res.ok) return;
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success) {
+        return json;
+      }
+    }
   } catch {
     // Continue to fallback
   }
@@ -393,29 +409,39 @@ export async function updateOrderPaymentStatus(
       headers: { "Content-Type": "application/json", ...authHeader },
       body: JSON.stringify({ orderId, payment_status: paymentStatus }),
     });
-    if (res.ok) return;
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success) {
+        return json;
+      }
+    }
   } catch {
     // Continue to fallback
   }
 
   // 2. Direct Supabase client update fallback
-  if (!isSupabaseConfigured()) return;
+  if (!isSupabaseConfigured()) return { success: true };
 
+  const nowIso = new Date().toISOString();
   const payload: Record<string, unknown> = {
     payment_status: paymentStatus,
-    updated_at: new Date().toISOString(),
+    updated_at: nowIso,
   };
 
   if (paymentStatus === "paid") {
-    payload.paid_at = new Date().toISOString();
+    payload.paid_at = nowIso;
   }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("orders")
     .update(payload)
-    .eq("id", orderId);
+    .eq("id", orderId)
+    .select("*, customer:customers(*), order_items(*)")
+    .maybeSingle();
 
   if (error) {
     throw new Error(`Failed to update payment status: ${error.message}`);
   }
+
+  return { success: true, order: data };
 }
