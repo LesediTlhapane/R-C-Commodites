@@ -118,6 +118,7 @@ export interface DbOrder {
   invoice_issued_at?: string | null;
   paid_at?: string | null;
   payment_transaction_id?: string | null;
+  receipt_email_sent_at?: string | null;
   created_at: string;
   updated_at: string;
   customer?: DbCustomer | null;

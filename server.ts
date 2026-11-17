@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
 import { createClient } from "@supabase/supabase-js";
 import { generatePayfastSignature, verifyPayfastSignature } from "./src/lib/payfastHelper";
+import sendReceiptHandler from "./api/orders/send-receipt";
 
 // Load environment configuration
 dotenv.config({ override: true });
@@ -762,6 +763,8 @@ app.patch("/api/orders/:id", async (req: Request, res: Response): Promise<void> 
     res.status(500).json({ success: false, error: msg });
   }
 });
+
+app.post("/api/orders/send-receipt", sendReceiptHandler);
 
 app.put("/api/orders/:id", async (req: Request, res: Response): Promise<void> => {
   req.method = "PATCH";

@@ -26,6 +26,7 @@ import {
   getAdminOrders,
   updateOrderStatus,
   updateOrderPaymentStatus,
+  sendOrderReceiptEmail,
   subscribeToOrdersRealtime,
 } from "../../lib/orderService";
 import type { DbOrder } from "../../types";
@@ -83,6 +84,7 @@ export function AdminOrders() {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [newStatus, setNewStatus] = useState<DbOrder["status"]>("pending");
   const [newPaymentStatus, setNewPaymentStatus] = useState<DbOrder["payment_status"]>("pending");
+  const [sendingReceiptOrderId, setSendingReceiptOrderId] = useState<string | null>(null);
 
   const loadOrders = async () => {
     setLoading(true);
@@ -124,6 +126,72 @@ export function AdminOrders() {
     acknowledgeOrder(order.id);
   };
 
+  const handleSendReceipt = async (orderId: string, resend = false) => {
+    setSendingReceiptOrderId(orderId);
+    setErrorMsg(null);
+    try {
+      const result = await sendOrderReceiptEmail(orderId, resend);
+      if (result.sentAt && !result.alreadySent) {
+        setOrders((prev) =>
+          prev.map((order) =>
+            order.id === orderId
+              ? { ...order, receipt_email_sent_at: result.sentAt }
+              : order
+          )
+        );
+        setSelectedOrder((prev) =>
+          prev && prev.id === orderId
+            ? { ...prev, receipt_email_sent_at: result.sentAt }
+            : prev
+        );
+      }
+
+      setSuccessMsg(
+        result.alreadySent
+          ? `Receipt was already sent to ${result.recipient}.`
+          : `Receipt sent to ${result.recipient}.`
+      );
+      if (result.trackingSaved === false) {
+        setErrorMsg("Receipt email was sent, but its delivery status could not be saved. Check before retrying.");
+      }
+      setTimeout(() => setSuccessMsg(null), 5000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to send receipt email.";
+      setErrorMsg(msg);
+    } finally {
+      setSendingReceiptOrderId(null);
+    }
+  };
+
+  const sendReceiptAfterApproval = async (orderId: string): Promise<string> => {
+    setSendingReceiptOrderId(orderId);
+    try {
+      const receipt = await sendOrderReceiptEmail(orderId);
+      if (receipt.sentAt && !receipt.alreadySent) {
+        setOrders((prev) =>
+          prev.map((order) =>
+            order.id === orderId
+              ? { ...order, receipt_email_sent_at: receipt.sentAt }
+              : order
+          )
+        );
+        setSelectedOrder((prev) =>
+          prev && prev.id === orderId
+            ? { ...prev, receipt_email_sent_at: receipt.sentAt }
+            : prev
+        );
+      }
+      if (receipt.trackingSaved === false) {
+        setErrorMsg("Payment was approved and the receipt was sent, but delivery status could not be saved. Check before retrying.");
+      }
+      return receipt.alreadySent
+        ? ` Receipt was already sent to ${receipt.recipient}.`
+        : ` Receipt sent to ${receipt.recipient}.`;
+    } finally {
+      setSendingReceiptOrderId(null);
+    }
+  };
+
   // Direct "Mark as Paid" action to verify EFT payment
   const handleMarkAsPaid = async (orderId: string, orderNumber?: string) => {
     setUpdatingStatus(true);
@@ -145,7 +213,15 @@ export function AdminOrders() {
       );
 
       setNewPaymentStatus("paid");
-      setSuccessMsg(`Payment confirmed: Order ${orderNumber || "selected"} marked as Paid.`);
+      let receiptStatus = "";
+      try {
+        receiptStatus = await sendReceiptAfterApproval(orderId);
+      } catch (receiptError: unknown) {
+        const message =
+          receiptError instanceof Error ? receiptError.message : "Receipt email failed.";
+        setErrorMsg(`Payment approved, but the receipt could not be sent: ${message}`);
+      }
+      setSuccessMsg(`Payment confirmed: Order ${orderNumber || "selected"} marked as Paid.${receiptStatus}`);
       setTimeout(() => setSuccessMsg(null), 3500);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to mark order as paid.";
@@ -164,6 +240,8 @@ export function AdminOrders() {
       if (newStatus !== selectedOrder.status) {
         await updateOrderStatus(selectedOrder.id, newStatus);
       }
+      const approvingPayment =
+        newPaymentStatus === "paid" && selectedOrder.payment_status !== "paid";
       if (newPaymentStatus !== selectedOrder.payment_status) {
         await updateOrderPaymentStatus(selectedOrder.id, newPaymentStatus);
       }
@@ -177,10 +255,28 @@ export function AdminOrders() {
       );
 
       setSelectedOrder((prev) =>
-        prev ? { ...prev, status: newStatus, payment_status: newPaymentStatus } : null
+        prev
+          ? {
+              ...prev,
+              status: newStatus,
+              payment_status: newPaymentStatus,
+              ...(approvingPayment ? { paid_at: new Date().toISOString() } : {}),
+            }
+          : null
       );
 
-      setSuccessMsg(`Order ${selectedOrder.order_number} status updated successfully.`);
+      let receiptStatus = "";
+      if (approvingPayment) {
+        try {
+          receiptStatus = await sendReceiptAfterApproval(selectedOrder.id);
+        } catch (receiptError: unknown) {
+          const message =
+            receiptError instanceof Error ? receiptError.message : "Receipt email failed.";
+          setErrorMsg(`Payment was approved, but the receipt could not be sent: ${message}`);
+        }
+      }
+
+      setSuccessMsg(`Order ${selectedOrder.order_number} status updated successfully.${receiptStatus}`);
       setTimeout(() => setSuccessMsg(null), 3000);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to update order.";
@@ -542,7 +638,7 @@ export function AdminOrders() {
           />
 
           <div className="fixed inset-y-0 right-0 flex max-w-full pl-6 sm:pl-10">
-            <div className="w-screen max-w-lg bg-card text-foreground shadow-2xl flex flex-col border-l border-border animate-in slide-in-from-right duration-300">
+            <div className="w-screen max-w-lg bg-neutral-950 text-neutral-100 shadow-2xl flex flex-col border-l border-neutral-800 animate-in slide-in-from-right duration-300">
               {/* Header */}
               <div className="flex items-center justify-between border-b border-neutral-800 px-6 py-5 bg-neutral-950 text-white">
                 <div>
@@ -574,14 +670,14 @@ export function AdminOrders() {
               </div>
 
               {/* Body */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div className="flex-1 overflow-y-auto bg-neutral-950 p-6 space-y-6">
                 {/* Customer Information Card */}
-                <div className="rounded-xl border border-neutral-800 bg-neutral-900/70 p-4 space-y-3">
+                <div className="rounded-xl border border-neutral-700 bg-neutral-900 p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">
+                    <span className="text-xs font-bold uppercase tracking-wider text-neutral-200">
                       Customer Details
                     </span>
-                    <span className="text-[10px] font-mono text-neutral-500">ID: {selectedOrder.customer_id?.substring(0, 8)}...</span>
+                    <span className="text-[10px] font-mono text-neutral-300">ID: {selectedOrder.customer_id?.substring(0, 8)}...</span>
                   </div>
 
                   {(() => {
@@ -642,8 +738,8 @@ export function AdminOrders() {
                 </div>
 
                 {/* Fulfilment Details */}
-                <div className="rounded-xl border border-neutral-800 bg-neutral-900/70 p-4 space-y-2 text-xs">
-                  <div className="text-xs font-bold uppercase tracking-wider text-neutral-400">
+                <div className="rounded-xl border border-neutral-700 bg-neutral-900 p-4 space-y-2 text-xs">
+                  <div className="text-xs font-bold uppercase tracking-wider text-neutral-200">
                     Fulfilment / Delivery
                   </div>
                   <div className="flex items-start gap-2 text-neutral-300">
@@ -655,7 +751,7 @@ export function AdminOrders() {
                             ? "Workshop Collection & Fitment"
                             : "Free Nationwide Delivery"}
                         </strong>
-                        <span className="text-neutral-400 text-[11px]">
+                        <span className="text-neutral-300 text-[11px]">
                           {selectedOrder.delivery_method?.toLowerCase().includes("collection")
                             ? "39 Webber St, Selby, Johannesburg (Direct Importer Depot)."
                             : "Dispatched from Selby warehouse depot directly to customer doorstep."}
@@ -663,7 +759,7 @@ export function AdminOrders() {
                       </div>
                       {(selectedOrder.delivery_address || selectedOrder.shipping_address) && (
                         <div className="pt-1.5 border-t border-neutral-800/80 text-[11px]">
-                          <span className="text-neutral-400 font-bold uppercase text-[10px] block">
+                          <span className="text-neutral-300 font-bold uppercase text-[10px] block">
                             Destination Address:
                           </span>
                           <span className="text-white font-medium">
@@ -676,8 +772,8 @@ export function AdminOrders() {
                 </div>
 
                 {/* Items Breakdown */}
-                <div className="rounded-xl border border-neutral-800 bg-neutral-900/70 p-4 space-y-3">
-                  <span className="text-xs font-bold uppercase tracking-wider text-neutral-400 block">
+                <div className="rounded-xl border border-neutral-700 bg-neutral-900 p-4 space-y-3">
+                  <span className="text-xs font-bold uppercase tracking-wider text-neutral-200 block">
                     Ordered Fitments &amp; Items
                   </span>
 
@@ -687,7 +783,7 @@ export function AdminOrders() {
                         <div key={it.id} className="py-2.5 flex items-center justify-between gap-3">
                           <div>
                             <div className="font-semibold text-white">{it.product_name}</div>
-                            <div className="text-neutral-500 text-[11px]">
+                            <div className="text-neutral-300 text-[11px]">
                               {it.quantity} x R{Number(it.unit_price).toLocaleString("en-ZA")}.00
                             </div>
                           </div>
@@ -703,8 +799,8 @@ export function AdminOrders() {
                     </div>
                   )}
 
-                  <div className="pt-3 border-t border-neutral-800 flex items-baseline justify-between text-sm">
-                    <span className="font-bold uppercase tracking-wider text-neutral-400">Total Amount</span>
+                  <div className="pt-3 border-t border-neutral-700 flex items-baseline justify-between text-sm">
+                    <span className="font-bold uppercase tracking-wider text-neutral-200">Total Amount</span>
                     <span className="font-display text-xl font-black text-primary">
                       R{Number(selectedOrder.total).toLocaleString("en-ZA")}.00
                     </span>
@@ -712,20 +808,20 @@ export function AdminOrders() {
                 </div>
 
                 {/* Payment Information */}
-                <div className="rounded-xl border border-neutral-800 bg-neutral-900/70 p-4 space-y-3 text-xs">
-                  <div className="text-xs font-bold uppercase tracking-wider text-neutral-400">
+                <div className="rounded-xl border border-neutral-700 bg-neutral-900 p-4 space-y-3 text-xs">
+                  <div className="text-xs font-bold uppercase tracking-wider text-neutral-200">
                     Payment Information
                   </div>
-                  <div className="flex items-center justify-between pb-2 border-b border-neutral-800/60">
-                    <span className="text-neutral-400">Payment Method:</span>
+                  <div className="flex items-center justify-between pb-2 border-b border-neutral-700">
+                    <span className="text-neutral-200">Payment Method:</span>
                     <span className="font-semibold text-white">
                       {selectedOrder.payment_method === "card_payfast"
                         ? "Payfast Online (Card / Instant EFT)"
                         : "Direct Bank EFT (First National Bank)"}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between pb-2 border-b border-neutral-800/60">
-                    <span className="text-neutral-400">Payment Status:</span>
+                  <div className="flex items-center justify-between pb-2 border-b border-neutral-700">
+                    <span className="text-neutral-200">Payment Status:</span>
                     <span
                       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
                         selectedOrder.payment_status === "paid"
@@ -747,7 +843,7 @@ export function AdminOrders() {
                   </div>
                   {selectedOrder.payment_reference && (
                     <div className="flex items-center justify-between pb-1">
-                      <span className="text-neutral-400">Payment / Audit Reference:</span>
+                      <span className="text-neutral-200">Payment / Audit Reference:</span>
                       <span className="font-mono text-primary font-bold">
                         {selectedOrder.payment_reference}
                       </span>
@@ -756,7 +852,7 @@ export function AdminOrders() {
 
                   {/* PROMINENT DIRECT "MARK AS PAID" ACTION FOR EFT ORDERS AWAITING PAYMENT */}
                   {selectedOrder.payment_status !== "paid" && (
-                    <div className="mt-3 p-3.5 rounded-xl bg-amber-950/40 border border-amber-800/80 space-y-2.5">
+                    <div className="mt-3 p-3.5 rounded-xl bg-amber-950 border border-amber-700 space-y-2.5">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <Clock size={16} className="text-amber-400 shrink-0" />
@@ -770,7 +866,7 @@ export function AdminOrders() {
                           Ref: {selectedOrder.payment_reference || selectedOrder.order_number}
                         </span>
                       </div>
-                      <p className="text-xs text-neutral-300 leading-relaxed">
+                      <p className="text-xs text-neutral-100 leading-relaxed">
                         Please verify that the customer payment of{" "}
                         <strong className="text-white font-mono font-bold">
                           R{Number(selectedOrder.total).toLocaleString("en-ZA")}.00
@@ -798,21 +894,54 @@ export function AdminOrders() {
                   )}
 
                   {selectedOrder.payment_status === "paid" && (
-                    <div className="mt-2 p-3 rounded-xl bg-emerald-950/40 border border-emerald-800/70 flex items-center justify-between text-xs text-emerald-300">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
-                        <span className="font-bold">Payment Confirmed &amp; Received</span>
+                    <div className="mt-2 p-3 rounded-xl bg-emerald-950 border border-emerald-700 space-y-3 text-xs text-emerald-200">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                          <span className="font-bold">Payment Confirmed &amp; Received</span>
+                        </div>
+                        <span className="text-[11px] font-mono text-emerald-300">
+                          {selectedOrder.paid_at
+                            ? new Date(selectedOrder.paid_at).toLocaleDateString("en-ZA", {
+                                day: "numeric",
+                                month: "short",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : "Verified Paid"}
+                        </span>
                       </div>
-                      <span className="text-[11px] font-mono text-emerald-400/90">
-                        {selectedOrder.paid_at
-                          ? new Date(selectedOrder.paid_at).toLocaleDateString("en-ZA", {
-                              day: "numeric",
-                              month: "short",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })
-                          : "Verified Paid"}
-                      </span>
+                      <div className="flex items-center justify-between gap-3 border-t border-emerald-800 pt-3">
+                        <span className="text-emerald-200">
+                          {selectedOrder.receipt_email_sent_at
+                            ? `Receipt emailed ${new Date(selectedOrder.receipt_email_sent_at).toLocaleDateString("en-ZA")}`
+                            : "Receipt has not been emailed"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleSendReceipt(
+                              selectedOrder.id,
+                              Boolean(selectedOrder.receipt_email_sent_at)
+                            )
+                          }
+                          disabled={sendingReceiptOrderId === selectedOrder.id}
+                          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-emerald-600 bg-emerald-900 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-emerald-800 disabled:cursor-wait disabled:opacity-60"
+                        >
+                          {sendingReceiptOrderId === selectedOrder.id ? (
+                            <RefreshCw size={12} className="animate-spin" />
+                          ) : (
+                            <Mail size={12} />
+                          )}
+                          <span>
+                            {sendingReceiptOrderId === selectedOrder.id
+                              ? "Sending..."
+                              : selectedOrder.receipt_email_sent_at
+                              ? "Resend Receipt"
+                              : "Email Receipt"}
+                          </span>
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

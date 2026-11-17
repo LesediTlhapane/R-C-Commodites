@@ -330,6 +330,51 @@ async function getAuthHeader(): Promise<Record<string, string>> {
   return {};
 }
 
+export interface SendOrderReceiptResult {
+  success: boolean;
+  recipient?: string;
+  sentAt?: string;
+  alreadySent?: boolean;
+  trackingSaved?: boolean;
+}
+
+/**
+ * Sends the payment receipt for a paid order from the authenticated admin portal.
+ */
+export async function sendOrderReceiptEmail(
+  orderId: string,
+  resend = false
+): Promise<SendOrderReceiptResult> {
+  const authHeader = await getAuthHeader();
+  if (!authHeader.Authorization) {
+    throw new Error("Your administrator session has expired. Sign in again to send the receipt.");
+  }
+
+  const response = await fetch("/api/orders/send-receipt", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeader },
+    body: JSON.stringify({ orderId, resend }),
+  });
+  const responseBody = await response.text();
+  let result: Partial<SendOrderReceiptResult> & { error?: string };
+  try {
+    result = JSON.parse(responseBody);
+  } catch {
+    const detail = responseBody.trim().slice(0, 240);
+    throw new Error(
+      detail
+        ? `Receipt service returned an invalid response (HTTP ${response.status}): ${detail}`
+        : `Receipt service returned an empty response (HTTP ${response.status}). Check the server deployment and logs.`
+    );
+  }
+
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || "Failed to send receipt email.");
+  }
+
+  return result as SendOrderReceiptResult;
+}
+
 /**
  * Updates an order status in Supabase (Admin action).
  */
