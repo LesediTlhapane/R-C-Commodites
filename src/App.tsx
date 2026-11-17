@@ -201,16 +201,6 @@ export default function App() {
     [cartItems]
   );
 
-  const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
-      if (product.active === false) return false;
-      const matchRange = range === "All" || product.range === range;
-      const matchSize = selectedSize === "All sizes" || product.size === selectedSize;
-      const matchPosition = selectedPosition === "All" || product.position === selectedPosition;
-      return matchRange && matchSize && matchPosition;
-    });
-  }, [products, range, selectedSize, selectedPosition]);
-
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
@@ -490,7 +480,7 @@ export default function App() {
           selectedSize={selectedSize}
           selectedPosition={selectedPosition}
           viewMode={tyreViewMode}
-          filteredProducts={filteredProducts}
+          products={products}
           sizeOptions={sizeOptions}
           onSelectRange={setRange}
           onSelectSize={setSelectedSize}

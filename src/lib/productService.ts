@@ -3,19 +3,27 @@ import type { DbProduct, TyreProduct, TyreCombo, InventoryHistoryItem, DbCombo, 
 import { tyreProducts as fallbackProducts, tyreCombos as fallbackCombos } from "../data/products";
 import { getTyreProfileImage } from "./assetHelper";
 import { generateUuid } from "./uuid";
+import { getTyreModelCategory } from "../data/tyreCatalogueTaxonomy";
 
 /**
  * Maps a database product row to the frontend TyreProduct model.
  * Preserves high-resolution imagery and parsed features.
  */
 export function mapDbProductToTyre(p: DbProduct): TyreProduct {
-  const range = (p.range === "NS" || p.range === "ST" ? p.range : (p.name.includes("NS") ? "NS" : "ST")) as "NS" | "ST";
-  const pos = (p.position === "Rear" ? "Rear" : "Front") as "Front" | "Rear";
+  const brand = p.brand || "Vredestein";
+  const range = p.range || "";
+  const pos = p.position || "Unknown";
 
   // Build standard size label: e.g. "120/70 ZR 17"
-  const size = p.width && p.profile && p.rim 
-    ? `${p.width}/${p.profile} ZR ${p.rim}`
-    : `${p.width || 120}/${p.profile || 70} ZR 17`;
+  const sizeType =
+    brand === "Vredestein"
+      ? "ZR"
+      : p.tyre_type && !["ST", "NS"].includes(p.tyre_type.toUpperCase())
+      ? p.tyre_type
+      : "";
+  const size = p.width && p.profile && p.rim
+    ? `${p.width}/${p.profile} ${sizeType ? `${sizeType} ` : ""}${p.rim}`
+    : [p.width, p.profile, p.rim].filter((part) => part !== null && part !== undefined).join("/");
 
   // Parse features from description or supply sensible fallback
   let features: string[] = [];
@@ -28,28 +36,45 @@ export function mapDbProductToTyre(p: DbProduct): TyreProduct {
   if (features.length === 0) {
     features = range === "NS"
       ? ["Zero-degree steel belt", "Track-proven steering precision", "Supreme cornering grip"]
-      : ["Linear progressive turn-in", "Exceptional wet evacuation", "Long-haul comfort & mileage"];
+      : range === "ST"
+      ? ["Linear progressive turn-in", "Exceptional wet evacuation", "Long-haul comfort & mileage"]
+      : [];
   }
 
   // Resolve best image: custom image_url or matched asset by dimension/range
-  const matchingFallback = fallbackProducts.find(
-    (fp) => fp.range === range && fp.position === pos && (fp.width === String(p.width) || fp.size.includes(String(p.width)))
-  );
-  const baseImg = p.image_url || (matchingFallback ? matchingFallback.image : fallbackProducts[0].image);
-  const image = getTyreProfileImage(size, range, baseImg);
+  const matchingFallback =
+    brand === "Vredestein"
+      ? fallbackProducts.find(
+          (fp) =>
+            fp.range === range &&
+            fp.position === pos &&
+            (fp.width === String(p.width) || fp.size.includes(String(p.width)))
+        )
+      : undefined;
+  const baseImg = p.image_url || matchingFallback?.image || "";
+  const image =
+    brand === "Vredestein" && (range === "NS" || range === "ST")
+      ? getTyreProfileImage(size, range, baseImg || fallbackProducts[0].image)
+      : baseImg;
 
   return {
     id: p.id,
     supabaseId: p.id,
     range,
     name: p.name,
-    brand: p.brand || "Vredestein",
+    brand,
+    category:
+      (p.category && p.category !== "Tyres" ? p.category : null) ||
+      getTyreModelCategory(brand, p.name) ||
+      (brand === "Vredestein" ? (range === "NS" ? "Sport" : range === "ST" ? "Sport Touring" : "Other") : null),
+    subcategory: p.subcategory || null,
+    createdAt: p.created_at,
     productType: p.product_type || "tyre",
     size,
     position: pos,
     width: String(p.width ?? ""),
     profile: String(p.profile ?? ""),
-    rim: `${p.rim || 17} inch`,
+    rim: p.rim ? `${p.rim} inch` : "",
     price: Number(p.price) || 0,
     image,
     features,
@@ -64,8 +89,17 @@ export function mapDbProductToTyre(p: DbProduct): TyreProduct {
  * Fetches all active products from Supabase (or fallback if unconfigured/offline).
  */
 export async function getStorefrontProducts(): Promise<TyreProduct[]> {
+  const getFallbackProducts = () =>
+    fallbackProducts.map((product) => ({
+      ...product,
+      brand: product.brand || "Vredestein",
+      category:
+        product.category ||
+        (product.range === "NS" ? "Sport" : product.range === "ST" ? "Sport Touring" : "Other"),
+    }));
+
   if (!isSupabaseConfigured()) {
-    return fallbackProducts;
+    return getFallbackProducts();
   }
 
   try {
@@ -77,17 +111,17 @@ export async function getStorefrontProducts(): Promise<TyreProduct[]> {
 
     if (error) {
       console.error("[productService] Error fetching storefront products:", error);
-      return fallbackProducts;
+      return getFallbackProducts();
     }
 
     if (!data || data.length === 0) {
-      return fallbackProducts;
+      return getFallbackProducts();
     }
 
     return (data as DbProduct[]).map(mapDbProductToTyre);
   } catch (err) {
     console.error("[productService] Unexpected error fetching storefront products:", err);
-    return fallbackProducts;
+    return getFallbackProducts();
   }
 }
 
@@ -176,6 +210,8 @@ export async function createProduct(
       {
         name: productData.name.trim(),
         brand: productData.brand.trim() || "Vredestein",
+        category: productData.category || "Tyres",
+        subcategory: productData.subcategory || null,
         range: productData.range || null,
         product_type: productData.product_type || "tyre",
         position: productData.position || null,
@@ -246,6 +282,8 @@ export async function updateProduct(
 
   if (updates.name !== undefined) payload.name = updates.name.trim();
   if (updates.brand !== undefined) payload.brand = updates.brand.trim();
+  if (updates.category !== undefined) payload.category = updates.category;
+  if (updates.subcategory !== undefined) payload.subcategory = updates.subcategory;
   if (updates.range !== undefined) payload.range = updates.range;
   if (updates.product_type !== undefined) payload.product_type = updates.product_type;
   if (updates.position !== undefined) payload.position = updates.position;

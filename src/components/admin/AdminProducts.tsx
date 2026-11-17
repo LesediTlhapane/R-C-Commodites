@@ -29,6 +29,12 @@ import {
   getInventoryHistory,
 } from "../../lib/productService";
 import type { DbProduct, InventoryHistoryItem } from "../../types";
+import {
+  getBrandModels,
+  getTyreModelCategory,
+  TYRE_BRANDS,
+  TYRE_CATEGORIES,
+} from "../../data/tyreCatalogueTaxonomy";
 
 export function AdminProducts() {
   const [products, setProducts] = useState<DbProduct[]>([]);
@@ -60,13 +66,15 @@ export function AdminProducts() {
     name: "",
     brand: "Vredestein",
     range: "ST",
+    category: "",
+    subcategory: "",
     product_type: "tyre",
     position: "Front",
-    width: "120",
-    profile: "70",
-    rim: "17",
-    tyre_type: "ST",
-    price: "1500",
+    width: "",
+    profile: "",
+    rim: "",
+    tyre_type: "",
+    price: "",
     stock_quantity: "",
     stock_verified: false,
     description: "",
@@ -112,19 +120,21 @@ export function AdminProducts() {
   const handleOpenCreate = () => {
     setEditingProduct(null);
     setFormData({
-      name: "Centauro ST Sport Touring",
+      name: "",
       brand: "Vredestein",
       range: "ST",
+      category: "",
+      subcategory: "",
       product_type: "tyre",
       position: "Front",
-      width: "120",
-      profile: "70",
-      rim: "17",
-      tyre_type: "ST",
-      price: "1350",
-      stock_quantity: "10",
-      stock_verified: true,
-      description: "Linear progressive turn-in. Exceptional wet evacuation.",
+      width: "",
+      profile: "",
+      rim: "",
+      tyre_type: "",
+      price: "",
+      stock_quantity: "",
+      stock_verified: false,
+      description: "",
       image_url: "",
       active: true,
     });
@@ -139,6 +149,11 @@ export function AdminProducts() {
       name: p.name,
       brand: p.brand || "Vredestein",
       range: p.range || "ST",
+      category:
+        (p.category && p.category !== "Tyres" ? p.category : null) ||
+        getTyreModelCategory(p.brand || "Vredestein", p.name) ||
+        "",
+      subcategory: p.subcategory || "",
       product_type: p.product_type || "tyre",
       position: p.position || "Front",
       width: p.width ? String(p.width) : "",
@@ -176,7 +191,9 @@ export function AdminProducts() {
       const payload = {
         name: formData.name,
         brand: formData.brand,
-        range: formData.range,
+        range: formData.brand.trim().toLowerCase() === "vredestein" ? formData.range || null : null,
+        category: formData.category.trim() || "Tyres",
+        subcategory: formData.subcategory.trim() || null,
         product_type: formData.product_type,
         position: formData.position,
         width: formData.width ? parseInt(formData.width, 10) : null,
@@ -790,7 +807,16 @@ export function AdminProducts() {
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3.5 py-2.5 text-sm text-white outline-none focus:border-primary font-medium"
                     placeholder="e.g. Centauro ST Sport Touring"
+                    list="admin-product-models"
                   />
+                  <datalist id="admin-product-models">
+                    {Array.from(new Set([
+                      ...getBrandModels(formData.brand),
+                      ...products
+                        .filter((product) => product.brand?.toLowerCase() === formData.brand.trim().toLowerCase())
+                        .map((product) => product.name),
+                    ])).map((model) => <option key={model} value={model} />)}
+                  </datalist>
                 </div>
 
                 {/* Brand */}
@@ -805,22 +831,64 @@ export function AdminProducts() {
                     onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
                     className="w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3.5 py-2.5 text-sm text-white outline-none focus:border-primary font-medium"
                     placeholder="Vredestein"
+                    list="admin-product-brands"
                   />
+                  <datalist id="admin-product-brands">
+                    {Array.from(new Set([...TYRE_BRANDS, ...products.map((product) => product.brand).filter(Boolean)]))
+                      .sort()
+                      .map((brand) => <option key={brand} value={brand} />)}
+                  </datalist>
                 </div>
 
-                {/* Range */}
+                {/* Category */}
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-1">
-                    Product Range
+                    Category *
                   </label>
-                  <select
-                    value={formData.range}
-                    onChange={(e) => setFormData({ ...formData, range: e.target.value })}
+                  <input
+                    type="text"
+                    required
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                     className="w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3.5 py-2.5 text-sm text-white outline-none focus:border-primary font-medium"
-                  >
-                    <option value="ST">Centauro ST (Sport Touring)</option>
-                    <option value="NS">Centauro NS (Super Sport)</option>
-                  </select>
+                    placeholder="e.g. Sport & Road"
+                    list="admin-product-categories"
+                  />
+                  <datalist id="admin-product-categories">
+                    {Array.from(new Set([
+                      ...TYRE_CATEGORIES,
+                      ...products.map((product) => product.category).filter((category): category is string => Boolean(category)),
+                    ])).sort().map((category) => <option key={category} value={category} />)}
+                  </datalist>
+                </div>
+
+                {formData.brand.trim().toLowerCase() === "vredestein" && (
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-1">
+                      Vredestein Range
+                    </label>
+                    <select
+                      value={formData.range}
+                      onChange={(e) => setFormData({ ...formData, range: e.target.value })}
+                      className="w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3.5 py-2.5 text-sm text-white outline-none focus:border-primary font-medium"
+                    >
+                      <option value="ST">Centauro ST (Sport Touring)</option>
+                      <option value="NS">Centauro NS (Super Sport)</option>
+                    </select>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-1">
+                    Subcategory (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.subcategory}
+                    onChange={(e) => setFormData({ ...formData, subcategory: e.target.value })}
+                    className="w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3.5 py-2.5 text-sm text-white outline-none focus:border-primary font-medium"
+                    placeholder="Optional classification"
+                  />
                 </div>
 
                 {/* Product Type */}
@@ -849,6 +917,7 @@ export function AdminProducts() {
                   >
                     <option value="Front">Front</option>
                     <option value="Rear">Rear</option>
+                    <option value="Both">Both</option>
                   </select>
                 </div>
 

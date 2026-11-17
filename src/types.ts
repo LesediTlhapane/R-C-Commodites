@@ -4,6 +4,9 @@ export interface DbProduct {
   id: string; // UUID in Supabase
   name: string;
   brand: string;
+  category?: string | null;
+  subcategory?: string | null;
+  sku?: string | null;
   range: string | null;
   product_type: string;
   position: string | null;
@@ -36,12 +39,15 @@ export interface InventoryHistoryItem {
 export interface TyreProduct {
   id: string | number; // Support UUID from Supabase or number
   supabaseId?: string;
-  range: "NS" | "ST";
+  range: string;
   name: string;
   brand?: string;
+  category?: string | null;
+  subcategory?: string | null;
+  createdAt?: string;
   productType?: string;
   size: string;
-  position: "Front" | "Rear";
+  position: "Front" | "Rear" | "Both" | string;
   width: string;
   profile: string;
   rim: string;

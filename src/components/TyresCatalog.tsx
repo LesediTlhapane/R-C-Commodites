@@ -1,22 +1,79 @@
-import { Tag, ShoppingBag, ShieldCheck, Phone, MessageSquare, Check, AlertCircle, CheckCircle2, HelpCircle } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import { useMemo, useState } from "react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  ChevronDown,
+  Filter,
+  HelpCircle,
+  ImageOff,
+  RotateCcw,
+  ShoppingBag,
+  X,
+} from "lucide-react";
 import type { Range, TyreProduct } from "../types";
+import { TYRE_BRANDS } from "../data/tyreCatalogueTaxonomy";
 import { ShopButton } from "./ShopButton";
-import { PERFORMANCE_EASE, TACTILE_EASE } from "../lib/motionTokens";
+
+type SortOption = "relevance" | "name-asc" | "name-desc" | "price-asc" | "price-desc" | "newest";
+type Facet = "brand" | "model" | "width" | "profile" | "rim" | "position" | "category";
 
 interface TyresCatalogProps {
   range: Range;
   selectedSize: string;
   selectedPosition: string;
   viewMode: "cards" | "table";
-  filteredProducts: TyreProduct[];
+  products: TyreProduct[];
   sizeOptions: string[];
-  onSelectRange: (r: Range) => void;
-  onSelectSize: (s: string) => void;
-  onSelectPosition: (p: string) => void;
-  onViewModeChange: (m: "cards" | "table") => void;
-  onAddToCart: (p: TyreProduct) => void;
+  onSelectRange: (range: Range) => void;
+  onSelectSize: (size: string) => void;
+  onSelectPosition: (position: string) => void;
+  onViewModeChange: (mode: "cards" | "table") => void;
+  onAddToCart: (product: TyreProduct) => void;
   onResetFilters: () => void;
+}
+
+const EMPTY_FILTERS: Record<Facet, string> = {
+  brand: "",
+  model: "",
+  width: "",
+  profile: "",
+  rim: "",
+  position: "",
+  category: "",
+};
+
+const FACET_LABELS: Record<Facet, string> = {
+  brand: "Brand",
+  model: "Model",
+  width: "Width",
+  profile: "Profile",
+  rim: "Rim size",
+  position: "Position",
+  category: "Category",
+};
+
+function unique(values: Array<string | null | undefined>): string[] {
+  return Array.from(new Set(values.map((value) => value?.trim()).filter((value): value is string => Boolean(value))));
+}
+
+function matchesFacet(product: TyreProduct, facet: Facet, value: string): boolean {
+  if (!value) return true;
+  switch (facet) {
+    case "brand":
+      return (product.brand || "Vredestein").toLowerCase() === value.toLowerCase();
+    case "model":
+      return product.name.toLowerCase() === value.toLowerCase();
+    case "width":
+      return product.width === value;
+    case "profile":
+      return product.profile === value;
+    case "rim":
+      return product.rim.replace(/\D/g, "") === value;
+    case "position":
+      return product.position === value || product.position === "Both";
+    case "category":
+      return (product.category || "Other").toLowerCase() === value.toLowerCase();
+  }
 }
 
 export function TyresCatalog({
@@ -24,7 +81,7 @@ export function TyresCatalog({
   selectedSize,
   selectedPosition,
   viewMode,
-  filteredProducts,
+  products,
   sizeOptions,
   onSelectRange,
   onSelectSize,
@@ -33,498 +90,494 @@ export function TyresCatalog({
   onAddToCart,
   onResetFilters,
 }: TyresCatalogProps) {
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [sort, setSort] = useState<SortOption>("relevance");
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [expandedFacets, setExpandedFacets] = useState<Record<Facet, boolean>>({
+    brand: true,
+    model: true,
+    width: true,
+    profile: false,
+    rim: false,
+    position: true,
+    category: true,
+  });
+
+  const availableProducts = useMemo(
+    () => products.filter((product) => product.active !== false),
+    [products]
+  );
+
+  const matches = (product: TyreProduct, exceptFacet?: Facet) => {
+    if (range !== "All" && product.range !== range) return false;
+    if (selectedSize !== "All sizes" && product.size !== selectedSize) return false;
+    if (
+      exceptFacet !== "position" &&
+      selectedPosition !== "All" &&
+      product.position !== selectedPosition &&
+      product.position !== "Both"
+    ) return false;
+
+    return (Object.keys(filters) as Facet[]).every(
+      (facet) => facet === exceptFacet || matchesFacet(product, facet, filters[facet])
+    );
+  };
+
+  const matchingProducts = useMemo(
+    () => availableProducts.filter((product) => matches(product)),
+    [availableProducts, range, selectedSize, selectedPosition, filters]
+  );
+
+  const sortedProducts = useMemo(() => {
+    const sorted = [...matchingProducts];
+    switch (sort) {
+      case "name-asc":
+        sorted.sort((a, b) => `${a.brand} ${a.name}`.localeCompare(`${b.brand} ${b.name}`));
+        break;
+      case "name-desc":
+        sorted.sort((a, b) => `${b.brand} ${b.name}`.localeCompare(`${a.brand} ${a.name}`));
+        break;
+      case "price-asc":
+        sorted.sort((a, b) => a.price - b.price);
+        break;
+      case "price-desc":
+        sorted.sort((a, b) => b.price - a.price);
+        break;
+      case "newest":
+        sorted.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+        break;
+    }
+    return sorted;
+  }, [matchingProducts, sort]);
+
+  const brandOptions = useMemo(
+    () => unique([...TYRE_BRANDS, ...availableProducts.map((product) => product.brand || "Vredestein")]),
+    [availableProducts]
+  );
+  const categoryOptions = useMemo(
+    () => unique(availableProducts.map((product) => product.category || "Other")).sort(),
+    [availableProducts]
+  );
+  const optionsFor = (facet: Facet): string[] => {
+    const facetProducts = availableProducts.filter((product) => matches(product, facet));
+    switch (facet) {
+      case "brand":
+        return brandOptions;
+      case "model":
+        return unique(facetProducts.map((product) => product.name)).sort();
+      case "width":
+        return unique(facetProducts.map((product) => product.width)).sort((a, b) => Number(a) - Number(b));
+      case "profile":
+        return unique(facetProducts.map((product) => product.profile)).sort((a, b) => Number(a) - Number(b));
+      case "rim":
+        return unique(facetProducts.map((product) => product.rim.replace(/\D/g, ""))).sort(
+          (a, b) => Number(a) - Number(b)
+        );
+      case "position":
+        return unique(facetProducts.flatMap((product) => (product.position === "Both" ? ["Front", "Rear", "Both"] : [product.position])));
+      case "category":
+        return unique(facetProducts.map((product) => product.category || "Other")).sort();
+    }
+  };
+
+  const countFor = (facet: Facet, value: string) =>
+    availableProducts.filter((product) => matches(product, facet) && matchesFacet(product, facet, value)).length;
+
+  const categories = optionsFor("category");
+  const activeFilters = [
+    ...(range !== "All" ? [{ label: `Range: ${range}`, clear: () => onSelectRange("All") }] : []),
+    ...(selectedSize !== "All sizes" ? [{ label: `Size: ${selectedSize}`, clear: () => onSelectSize("All sizes") }] : []),
+    ...(selectedPosition !== "All" ? [{ label: `Position: ${selectedPosition}`, clear: () => onSelectPosition("All") }] : []),
+    ...(Object.keys(filters) as Facet[])
+      .filter((facet) => filters[facet])
+      .map((facet) => ({
+        label: `${FACET_LABELS[facet]}: ${filters[facet]}`,
+        clear: () => setFilters((current) => ({ ...current, [facet]: "" })),
+      })),
+  ];
+
+  const clearAll = () => {
+    setFilters(EMPTY_FILTERS);
+    onResetFilters();
+    setMobileFiltersOpen(false);
+  };
+
+  const selectFacet = (facet: Facet, value: string) => {
+    if (facet === "position") {
+      onSelectPosition(selectedPosition === value ? "All" : value);
+      return;
+    }
+    setFilters((current) => ({
+      ...current,
+      [facet]: current[facet] === value ? "" : value,
+      ...(facet === "brand" ? { model: "" } : {}),
+    }));
+  };
+
+  const toggleFacet = (facet: Facet) =>
+    setExpandedFacets((current) => ({ ...current, [facet]: !current[facet] }));
+
+  const filterContent = (
+    <div className="space-y-2">
+      {(["brand", "model", "width", "profile", "rim", "position", "category"] as Facet[]).map((facet) => {
+        const options = optionsFor(facet);
+        return (
+          <section key={facet} className="overflow-hidden rounded-xl border border-border bg-card">
+            <button
+              type="button"
+              onClick={() => toggleFacet(facet)}
+              className="flex w-full items-center justify-between px-4 py-3 text-left text-xs font-black uppercase tracking-wider text-foreground hover:bg-surface-soft"
+              aria-expanded={expandedFacets[facet]}
+            >
+              <span>{FACET_LABELS[facet]}</span>
+              <ChevronDown size={15} className={`transition-transform ${expandedFacets[facet] ? "rotate-180" : ""}`} />
+            </button>
+            {expandedFacets[facet] && (
+              <div className="max-h-56 space-y-1 overflow-y-auto border-t border-border px-3 py-2">
+                {options.length === 0 ? (
+                  <p className="px-1 py-2 text-xs text-foreground-muted">No matching options.</p>
+                ) : options.map((option) => {
+                  const count = countFor(facet, option);
+                  const unavailableBrand = facet === "brand" && count === 0;
+                  return (
+                    <label
+                      key={option}
+                      className={`flex items-center justify-between gap-2 rounded-md px-1.5 py-1 text-xs ${
+                        unavailableBrand ? "cursor-not-allowed text-foreground-muted/60" : "cursor-pointer text-foreground hover:bg-surface-soft"
+                      }`}
+                      title={unavailableBrand ? "No products from this brand are currently listed." : undefined}
+                    >
+                      <span className="flex min-w-0 items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={facet === "position" ? selectedPosition === option : filters[facet] === option}
+                          disabled={unavailableBrand}
+                          onChange={() => selectFacet(facet, option)}
+                          className="size-3.5 accent-primary"
+                        />
+                        <span className="truncate">{option}</span>
+                      </span>
+                      <span className="shrink-0 text-[10px] text-foreground-muted">{count}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        );
+      })}
+
+      <label className="block rounded-xl border border-border bg-card p-3">
+        <span className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-foreground-muted">
+          Tyre size
+        </span>
+        <select
+          value={selectedSize}
+          onChange={(event) => onSelectSize(event.target.value)}
+          className="h-10 w-full rounded-md border border-border bg-surface-soft px-2.5 text-xs font-semibold text-foreground outline-none focus:border-primary"
+        >
+          {sizeOptions.map((size) => <option key={size} value={size}>{size}</option>)}
+        </select>
+      </label>
+
+      <button
+        type="button"
+        onClick={clearAll}
+        className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-surface-soft px-3 py-2.5 text-xs font-bold uppercase tracking-wider text-foreground hover:border-primary hover:text-primary"
+      >
+        <RotateCcw size={13} /> Clear all filters
+      </button>
+    </div>
+  );
+
   return (
     <section id="tyres" className="mx-auto max-w-[1400px] px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
-      <div className="grid gap-10 lg:grid-cols-12">
-        {/* Left Sidebar Guide & Price Matrix */}
-        <div className="lg:col-span-4">
-          <div className="sticky top-28 space-y-6">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
-                Vredestein Range Breakdown
-              </p>
-              <h2 className="mt-2 font-display text-3xl sm:text-4xl leading-[1.05] uppercase tracking-tight text-foreground">
-                Engineered for your riding discipline.
-              </h2>
+      <div className="mb-8">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Find your next tyre</p>
+        <h2 className="mt-2 font-display text-3xl uppercase tracking-tight text-foreground sm:text-4xl">Tyres</h2>
+        <p className="mt-2 max-w-2xl text-sm text-foreground-muted">
+          Browse available motorcycle tyres by brand, model, fitment and riding category.
+        </p>
+      </div>
+
+      {categories.length > 0 && (
+        <nav aria-label="Tyre categories" className="mb-6 flex gap-2 overflow-x-auto pb-2">
+          <button
+            type="button"
+            onClick={() => setFilters((current) => ({ ...current, category: "" }))}
+            className={`shrink-0 rounded-full border px-4 py-2 text-xs font-bold uppercase tracking-wide ${
+              filters.category ? "border-border bg-card text-foreground-muted" : "border-primary bg-primary text-white"
+            }`}
+          >
+            All categories ({availableProducts.filter((product) => matches(product, "category")).length})
+          </button>
+          {categories.map((category) => (
+            <button
+              type="button"
+              key={category}
+              onClick={() => selectFacet("category", category)}
+              className={`shrink-0 rounded-full border px-4 py-2 text-xs font-bold uppercase tracking-wide ${
+                filters.category === category ? "border-primary bg-primary text-white" : "border-border bg-card text-foreground hover:border-primary"
+              }`}
+            >
+              {category} ({countFor("category", category)})
+            </button>
+          ))}
+        </nav>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-[250px_minmax(0,1fr)]">
+        <aside className="hidden lg:block">
+          <div className="sticky top-24">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="font-display text-sm uppercase tracking-wide text-foreground">Filter tyres</h3>
+              <span className="text-[10px] font-bold text-foreground-muted">{activeFilters.length} active</span>
             </div>
-
-            {/* Range Toggle Cards */}
-            <div className="rounded-xl border border-border bg-card p-1.5 shadow-sm space-y-1">
-              <motion.button
-                whileTap={{ scale: 0.98 }}
-                onClick={() => {
-                  onSelectRange("NS");
-                  onSelectSize("All sizes");
-                }}
-                className={`flex w-full gap-3.5 rounded-lg p-3.5 text-left transition-all ${
-                  range === "NS"
-                    ? "bg-primary/10 border-l-4 border-primary ring-1 ring-primary/20 shadow-xs"
-                    : "hover:bg-surface-soft"
-                }`}
-              >
-                <span className="mt-1 size-3 shrink-0 rounded-full bg-primary" />
-                <div>
-                  <strong className="font-display text-sm sm:text-base text-foreground block">
-                    Centauro NS (Super Sport)
-                  </strong>
-                  <p className="mt-1 text-xs text-foreground-muted leading-relaxed">
-                    Track &amp; aggressive road grip, fast steering turn-in, and supreme confidence at maximum lean angle.
-                  </p>
-                </div>
-              </motion.button>
-
-              <motion.button
-                whileTap={{ scale: 0.98 }}
-                onClick={() => {
-                  onSelectRange("ST");
-                  onSelectSize("All sizes");
-                }}
-                className={`flex w-full gap-3.5 rounded-lg p-3.5 text-left transition-all ${
-                  range === "ST"
-                    ? "bg-steel/10 border-l-4 border-steel ring-1 ring-steel/20 shadow-xs"
-                    : "hover:bg-surface-soft"
-                }`}
-              >
-                <span className="mt-1 size-3 shrink-0 rounded-full bg-steel" />
-                <div>
-                  <strong className="font-display text-sm sm:text-base text-foreground block">
-                    Centauro ST (Sport Touring)
-                  </strong>
-                  <p className="mt-1 text-xs text-foreground-muted leading-relaxed">
-                    Exceptional wet drainage siping, extended tread life, and all-weather touring comfort.
-                  </p>
-                </div>
-              </motion.button>
-
-              <motion.button
-                whileTap={{ scale: 0.98 }}
-                onClick={() => {
-                  onSelectRange("All");
-                  onSelectSize("All sizes");
-                  onSelectPosition("All");
-                }}
-                className={`flex w-full gap-3.5 rounded-lg p-2.5 text-left text-xs font-bold uppercase tracking-wider text-primary hover:underline items-center ${
-                  range === "All" ? "font-black" : ""
-                }`}
-              >
-                <span>View all fitments ({filteredProducts.length}) →</span>
-              </motion.button>
-            </div>
-
-            {/* Official Selling Price Matrix */}
-            <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-              <div className="flex items-center justify-between pb-3 border-b border-border">
-                <div className="flex items-center gap-2">
-                  <Tag size={15} className="text-primary" />
-                  <span className="text-xs font-black uppercase tracking-wider">Official Selling Prices</span>
-                </div>
-                <span className="text-[10px] font-bold uppercase text-emerald-700 bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-400 px-2.5 py-0.5 rounded-full">
-                  In Stock (Selby)
-                </span>
-              </div>
-
-              {/* Centauro ST Table */}
-              <div className="mt-3.5">
-                <div className="flex items-center justify-between text-[11px] font-black uppercase text-steel tracking-wider pb-1.5">
-                  <span>Centauro ST (Sport Touring)</span>
-                  <span>Price (ZAR)</span>
-                </div>
-                <div className="divide-y divide-border/60 text-xs">
-                  <div className="flex justify-between py-1.5">
-                    <span className="font-medium text-foreground">120/70 ZR 17 – Front</span>
-                    <strong className="font-bold text-primary">R 1,350.00</strong>
-                  </div>
-                  <div className="flex justify-between py-1.5">
-                    <span className="font-medium text-foreground">180/55 ZR 17 – Rear</span>
-                    <strong className="font-bold text-primary">R 1,999.00</strong>
-                  </div>
-                  <div className="flex justify-between py-1.5">
-                    <span className="font-medium text-foreground">190/50 ZR 17 – Rear</span>
-                    <strong className="font-bold text-primary">R 2,300.00</strong>
-                  </div>
-                  <div className="flex justify-between py-1.5">
-                    <span className="font-medium text-foreground">190/55 ZR 17 – Rear</span>
-                    <strong className="font-bold text-primary">R 2,400.00</strong>
-                  </div>
-                </div>
-              </div>
-
-              {/* Centauro NS Table */}
-              <div className="mt-4 pt-3 border-t border-border">
-                <div className="flex items-center justify-between text-[11px] font-black uppercase text-primary tracking-wider pb-1.5">
-                  <span>Centauro NS (Super Sport)</span>
-                  <span>Price (ZAR)</span>
-                </div>
-                <div className="divide-y divide-border/60 text-xs">
-                  <div className="flex justify-between py-1.5">
-                    <span className="font-medium text-foreground">120/70 ZR 17 – Front</span>
-                    <strong className="font-bold text-primary">R 1,900.00</strong>
-                  </div>
-                  <div className="flex justify-between py-1.5">
-                    <span className="font-medium text-foreground">180/55 ZR 17 – Rear</span>
-                    <strong className="font-bold text-primary">R 2,000.00</strong>
-                  </div>
-                  <div className="flex justify-between py-1.5">
-                    <span className="font-medium text-foreground">190/55 ZR 17 – Rear</span>
-                    <strong className="font-bold text-primary">R 2,450.00</strong>
-                  </div>
-                  <div className="flex justify-between py-1.5">
-                    <span className="font-medium text-foreground">200/55 ZR 17 – Rear</span>
-                    <strong className="font-bold text-primary">R 3,100.00</strong>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Genuine Importer Guarantee Box */}
-            <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-5 text-white shadow-md">
-              <div className="flex items-center gap-2 text-amber-400 text-xs font-bold uppercase tracking-wider">
-                <ShieldCheck size={18} /> Official Importer Guarantee
-              </div>
-              <p className="mt-2 text-xs text-neutral-300 leading-relaxed">
-                Direct European performance engineering by Vredestein. Stored and fitted in Selby, Johannesburg.
-              </p>
-              <div className="mt-4 flex flex-col gap-2">
-                <div className="flex flex-wrap gap-x-4 gap-y-2">
-                  <a
-                    href="tel:+27832273237"
-                    className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400 hover:text-white transition-colors"
-                  >
-                    <Phone size={14} /> Call Costa: +27 83 227 3237
-                  </a>
-                  <a
-                    href="https://wa.me/27832273237?text=Hi%20Costa,%20I%20have%20a%20tyre%20enquiry"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400 hover:text-white transition-colors"
-                  >
-                    <MessageSquare size={14} /> WhatsApp Costa
-                  </a>
-                </div>
-                <div className="flex flex-wrap gap-x-4 gap-y-2">
-                  <a
-                    href="tel:+27834671394"
-                    className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400 hover:text-white transition-colors"
-                  >
-                    <Phone size={14} /> Call Dhevan: +27 83 4671394
-                  </a>
-                  <a
-                    href="https://wa.me/27834671394?text=Hi%2C%20I%20have%20a%20tyre%20enquiry"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400 hover:text-white transition-colors"
-                  >
-                    <MessageSquare size={14} /> WhatsApp Dhevan
-                  </a>
-                </div>
-              </div>
-            </div>
+            {filterContent}
           </div>
-        </div>
+        </aside>
 
-        {/* Right Product Grid & Filter Toolbar */}
-        <div className="lg:col-span-8">
-          {/* Filter Toolbar */}
-          <div className="mb-6 flex flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between shadow-xs">
+        <div className="min-w-0">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 shadow-xs">
             <div>
               <p className="text-sm font-bold text-foreground">
-                <span className="font-display text-primary text-base">{filteredProducts.length}</span>{" "}
-                Fitments Available
+                Showing <span className="font-display text-primary">{sortedProducts.length}</span>{" "}
+                {sortedProducts.length === 1 ? "product" : "products"}
               </p>
               <p className="text-xs text-foreground-muted">
-                Showing {range === "All" ? "all ranges" : `Centauro ${range}`}
-                {selectedSize !== "All sizes" ? ` · ${selectedSize}` : ""}
+                {availableProducts.length} listed product{availableProducts.length === 1 ? "" : "s"} in the catalogue
               </p>
             </div>
-
-            <div className="flex flex-wrap items-center gap-2.5">
-              {/* View mode toggle */}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setMobileFiltersOpen(true)}
+                className="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-surface-soft px-3 text-xs font-bold text-foreground lg:hidden"
+              >
+                <Filter size={14} /> Filters{activeFilters.length ? ` (${activeFilters.length})` : ""}
+              </button>
+              <label className="flex items-center gap-2 text-xs font-bold text-foreground-muted">
+                <span className="hidden sm:inline">Sort by</span>
+                <select
+                  value={sort}
+                  onChange={(event) => setSort(event.target.value as SortOption)}
+                  className="h-10 rounded-md border border-border bg-surface-soft px-3 text-xs font-semibold text-foreground outline-none focus:border-primary"
+                >
+                  <option value="relevance">Relevance</option>
+                  <option value="name-asc">Name: A–Z</option>
+                  <option value="name-desc">Name: Z–A</option>
+                  <option value="price-asc">Price: Low to High</option>
+                  <option value="price-desc">Price: High to Low</option>
+                  <option value="newest">Newest</option>
+                </select>
+              </label>
               <div className="flex items-center rounded-md border border-border bg-surface-soft p-0.5 text-xs font-bold">
                 <button
+                  type="button"
                   onClick={() => onViewModeChange("cards")}
-                  className={`px-3 py-1.5 rounded transition-all ${
-                    viewMode === "cards"
-                      ? "bg-foreground text-background shadow-xs"
-                      : "text-foreground-muted hover:text-foreground"
-                  }`}
+                  className={`rounded px-3 py-2 ${viewMode === "cards" ? "bg-foreground text-background" : "text-foreground-muted"}`}
                 >
                   Cards
                 </button>
                 <button
+                  type="button"
                   onClick={() => onViewModeChange("table")}
-                  className={`px-3 py-1.5 rounded transition-all ${
-                    viewMode === "table"
-                      ? "bg-foreground text-background shadow-xs"
-                      : "text-foreground-muted hover:text-foreground"
-                  }`}
+                  className={`rounded px-3 py-2 ${viewMode === "table" ? "bg-foreground text-background" : "text-foreground-muted"}`}
                 >
-                  Price Table
+                  Table
                 </button>
               </div>
-
-              {/* Position filter */}
-              <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-foreground-muted">
-                <span className="hidden sm:inline">Position:</span>
-                <select
-                  value={selectedPosition}
-                  onChange={(e) => onSelectPosition(e.target.value)}
-                  className="h-9 rounded-md border border-border bg-surface-soft px-2.5 text-xs text-foreground font-semibold outline-none focus:border-primary"
-                >
-                  <option value="All">All Positions</option>
-                  <option value="Front">Front</option>
-                  <option value="Rear">Rear</option>
-                </select>
-              </label>
-
-              {/* Size filter */}
-              <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-foreground-muted">
-                <span className="hidden sm:inline">Size:</span>
-                <select
-                  value={selectedSize}
-                  onChange={(e) => onSelectSize(e.target.value)}
-                  className="h-9 rounded-md border border-border bg-surface-soft px-2.5 text-xs text-foreground font-semibold outline-none focus:border-primary"
-                >
-                  {sizeOptions.map((sz) => (
-                    <option key={sz} value={sz}>
-                      {sz}
-                    </option>
-                  ))}
-                </select>
-              </label>
             </div>
           </div>
 
-          {/* Table View */}
-          {viewMode === "table" ? (
-            <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm border-collapse">
-                  <thead>
-                    <tr className="border-b border-border bg-surface-soft text-[11px] font-black uppercase tracking-wider text-foreground-muted">
-                      <th className="p-4">Tyre Model</th>
-                      <th className="p-4">Size Specification</th>
-                      <th className="p-4">Position</th>
-                      <th className="p-4">Stock Status</th>
-                      <th className="p-4">Selling Price</th>
-                      <th className="p-4 text-right">Cart Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {filteredProducts.map((product) => {
-                      const isStockVerified = Boolean(product.stockVerified);
-                      const stockQty = product.stockQuantity;
-                      const isInStock = isStockVerified && stockQty !== null && stockQty > 0;
-                      const isOutOfStock = isStockVerified && stockQty === 0;
-
-                      return (
-                        <tr key={product.id} className="hover:bg-surface-soft/60 transition-colors">
-                          <td className="p-4 font-bold text-foreground">
-                            <span
-                              className={`inline-block rounded-xs px-2 py-0.5 text-[10px] font-black uppercase mr-2.5 ${
-                                product.range === "NS" ? "bg-primary text-white" : "bg-steel text-white"
-                              }`}
-                            >
-                              {product.range}
-                            </span>
-                            {product.name}
-                          </td>
-                          <td className="p-4 font-display font-semibold text-foreground">
-                            {product.size}
-                          </td>
-                          <td className="p-4 text-xs uppercase font-medium text-foreground-muted">
-                            {product.position}
-                          </td>
-                          <td className="p-4">
-                            {isInStock ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold uppercase text-emerald-600 dark:text-emerald-400">
-                                <CheckCircle2 size={11} /> IN STOCK ({stockQty})
-                              </span>
-                            ) : isOutOfStock ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 border border-red-500/20 px-2.5 py-0.5 text-[10px] font-bold uppercase text-red-600 dark:text-red-400">
-                                <AlertCircle size={11} /> OUT OF STOCK
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 text-[10px] font-bold uppercase text-amber-600 dark:text-amber-400">
-                                <HelpCircle size={11} /> STOCK NOT VERIFIED
-                              </span>
-                            )}
-                          </td>
-                          <td className="p-4">
-                            <span className="font-display font-bold text-base text-primary">
-                              R {product.price.toLocaleString("en-ZA")}.00
-                            </span>
-                          </td>
-                          <td className="p-4 text-right">
-                            {isInStock ? (
-                              <button
-                                onClick={() => onAddToCart(product)}
-                                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-primary-hover transition-colors shadow-xs active:scale-95 cursor-pointer"
-                              >
-                                <ShoppingBag size={13} /> Add
-                              </button>
-                            ) : isOutOfStock ? (
-                              <button
-                                disabled
-                                className="inline-flex items-center gap-1.5 rounded-md bg-neutral-800/40 border border-neutral-700/50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-neutral-500 cursor-not-allowed"
-                              >
-                                Out of Stock
-                              </button>
-                            ) : (
-                              <button
-                                disabled
-                                title="Stock has not yet been verified by Selby warehouse."
-                                className="inline-flex items-center gap-1.5 rounded-md bg-neutral-800/40 border border-neutral-700/50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-neutral-500 cursor-not-allowed"
-                              >
-                                Unverified
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ) : (
-            /* Cards Grid View */
-            <div className="grid gap-5 sm:grid-cols-2">
-              {filteredProducts.map((product, idx) => (
-                <motion.article
-                  key={product.id}
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.35, delay: Math.min(idx * 0.04, 0.3), ease: PERFORMANCE_EASE }}
-                  whileHover={{ y: -4, transition: { duration: 0.2, ease: PERFORMANCE_EASE } }}
-                  className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-border bg-card shadow-xs transition-colors hover:shadow-xl hover:border-neutral-400"
+          {activeFilters.length > 0 && (
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              {activeFilters.map((filter) => (
+                <button
+                  type="button"
+                  key={filter.label}
+                  onClick={filter.clear}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-3 py-1.5 text-[11px] font-semibold text-foreground"
                 >
-                  <div>
-                    {/* Tyre Image Showcase */}
-                    <div className="relative aspect-[5/4] bg-surface-soft overflow-hidden">
-                      <img
-                        src={product.image}
-                        alt={`${product.name} ${product.position} tyre`}
-                        className="h-full w-full object-contain p-6 transition-transform duration-500 group-hover:scale-105"
-                      />
-                      <span
-                        className={`absolute left-3.5 top-3.5 rounded-md px-2.5 py-1 text-[11px] font-black uppercase tracking-wider shadow-md ${
-                          product.range === "NS"
-                            ? "bg-primary text-white"
-                            : "bg-steel text-white"
-                        }`}
-                      >
-                        {product.range === "NS" ? "Super Sport (NS)" : "Sport Touring (ST)"}
-                      </span>
-                      <span className="absolute right-3.5 top-3.5 rounded-md bg-neutral-950/80 px-2.5 py-1 text-[10px] font-bold text-white uppercase backdrop-blur-xs">
-                        {product.position} Tyre
-                      </span>
-
-                      {/* Authoritative Stock Status Badge Overlay */}
-                      <div className="absolute bottom-3 left-3.5">
-                        {product.stockVerified && product.stockQuantity !== null && product.stockQuantity > 0 ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-md bg-neutral-950/85 border border-emerald-500/40 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-400 backdrop-blur-xs shadow-sm">
-                            <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                            IN STOCK ({product.stockQuantity})
-                          </span>
-                        ) : product.stockVerified && product.stockQuantity === 0 ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-md bg-neutral-950/90 border border-red-500/40 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-red-400 backdrop-blur-xs shadow-sm">
-                            <span className="size-1.5 rounded-full bg-red-400" />
-                            OUT OF STOCK
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 rounded-md bg-neutral-950/85 border border-amber-500/40 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-amber-300 backdrop-blur-xs shadow-sm">
-                            <span className="size-1.5 rounded-full bg-amber-400" />
-                            STOCK NOT VERIFIED
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Details */}
-                    <div className="p-5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <span className="text-[11px] font-medium uppercase tracking-wider text-foreground-muted block">
-                            {product.range === "NS" ? "Centauro NS · Super Sport" : "Centauro ST · Sport Touring"} · {product.position}
-                          </span>
-                          <h3 className="font-display text-lg uppercase tracking-tight text-foreground mt-0.5">
-                            {product.name}
-                          </h3>
-                          <p className="mt-1 font-display text-xl font-bold text-primary">
-                            {product.size}
-                          </p>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <span className="text-[10px] uppercase font-medium text-foreground-muted block">Selling Price</span>
-                          <strong className="font-display text-xl font-bold text-foreground block">
-                            R{product.price.toLocaleString("en-ZA")}.00
-                          </strong>
-                        </div>
-                      </div>
-
-                      {/* Feature Chips */}
-                      <div className="mt-3.5 flex flex-wrap gap-1.5">
-                        {product.features.map((feat, idx) => (
-                          <span
-                            key={idx}
-                            className="rounded-md bg-surface-soft px-2.5 py-1 text-[11px] text-foreground-muted font-normal"
-                          >
-                            {feat}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Add to Cart CTA with exact stock compliance */}
-                  <div className="p-5 pt-0">
-                    {product.stockVerified && product.stockQuantity !== null && product.stockQuantity > 0 ? (
-                      <ShopButton
-                        variant="dark"
-                        className="w-full uppercase tracking-wider text-xs font-bold cursor-pointer"
-                        onClick={() => onAddToCart(product)}
-                      >
-                        Add to cart <ShoppingBag size={15} />
-                      </ShopButton>
-                    ) : product.stockVerified && product.stockQuantity === 0 ? (
-                      <button
-                        disabled
-                        className="w-full rounded-md bg-neutral-800/50 border border-neutral-700/60 py-3 text-xs font-black uppercase tracking-wider text-neutral-400 cursor-not-allowed flex items-center justify-center gap-2"
-                      >
-                        <AlertCircle size={15} className="text-red-400" /> OUT OF STOCK
-                      </button>
-                    ) : (
-                      <button
-                        disabled
-                        title="Stock has not yet been verified by the Selby warehouse."
-                        className="w-full rounded-md bg-neutral-800/40 border border-neutral-700/50 py-3 text-xs font-bold uppercase tracking-wider text-neutral-500 cursor-not-allowed flex items-center justify-center gap-2"
-                      >
-                        <HelpCircle size={15} className="text-amber-400" /> STOCK NOT VERIFIED
-                      </button>
-                    )}
-                  </div>
-                </motion.article>
+                  {filter.label} <X size={12} />
+                </button>
               ))}
+              <button type="button" onClick={clearAll} className="text-[11px] font-bold text-primary hover:underline">
+                Clear all
+              </button>
             </div>
           )}
 
-          {/* Empty Filter State */}
-          {filteredProducts.length === 0 && (
-            <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center">
-              <p className="font-display text-xl text-foreground">No fitments match your selected filters</p>
-              <p className="mt-2 text-sm text-foreground-muted">
-                Try choosing "All sizes" or clearing the position filter.
-              </p>
+          {sortedProducts.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center sm:p-14">
+              <p className="font-display text-xl uppercase text-foreground">No tyres match these filters</p>
+              <p className="mt-2 text-sm text-foreground-muted">Clear one or more filters to see available products.</p>
               <button
-                onClick={onResetFilters}
-                className="mt-5 rounded-md bg-primary px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-primary-hover transition-colors shadow-md"
+                type="button"
+                onClick={clearAll}
+                className="mt-5 rounded-md bg-primary px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-primary-hover"
               >
-                Reset Filters
+                Clear filters
               </button>
+            </div>
+          ) : viewMode === "table" ? (
+            <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-sm">
+              <table className="w-full min-w-[720px] text-left text-sm">
+                <thead className="bg-surface-soft text-[10px] font-black uppercase tracking-wider text-foreground-muted">
+                  <tr>
+                    <th className="p-4">Brand / Model</th>
+                    <th className="p-4">Size</th>
+                    <th className="p-4">Position</th>
+                    <th className="p-4">Availability</th>
+                    <th className="p-4">Price</th>
+                    <th className="p-4 text-right">Cart</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {sortedProducts.map((product) => (
+                    <tr key={product.id} className="hover:bg-surface-soft/50">
+                      <td className="p-4">
+                        <span className="block text-[10px] font-bold uppercase text-foreground-muted">{product.brand}</span>
+                        <span className="font-semibold text-foreground">{product.name}</span>
+                      </td>
+                      <td className="p-4 font-display font-semibold text-foreground">{product.size}</td>
+                      <td className="p-4 text-xs text-foreground-muted">{product.position}</td>
+                      <td className="p-4"><StockLabel product={product} /></td>
+                      <td className="p-4 font-display font-bold text-primary">R {product.price.toLocaleString("en-ZA")}.00</td>
+                      <td className="p-4 text-right">
+                        <AddToCart product={product} onAddToCart={onAddToCart} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              {sortedProducts.map((product) => (
+                <article key={product.id} className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-xs transition hover:-translate-y-1 hover:shadow-xl">
+                  <div className="relative grid aspect-[5/4] place-items-center overflow-hidden bg-surface-soft">
+                    {product.image ? (
+                      <img
+                        src={product.image}
+                        alt={`${product.brand} ${product.name} tyre`}
+                        className="h-full w-full object-contain p-6 transition-transform duration-300 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 text-foreground-muted">
+                        <ImageOff size={34} strokeWidth={1.4} />
+                        <span className="text-[10px] font-bold uppercase tracking-wider">Image coming soon</span>
+                      </div>
+                    )}
+                    <span className="absolute left-3 top-3 rounded-md bg-neutral-950/85 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white">
+                      {product.brand || "Tyre"}
+                    </span>
+                    <span className="absolute right-3 top-3 rounded-md bg-neutral-950/80 px-2.5 py-1 text-[10px] font-bold uppercase text-white">
+                      {product.position}
+                    </span>
+                    <div className="absolute bottom-3 left-3"><StockLabel product={product} /></div>
+                  </div>
+                  <div className="flex flex-1 flex-col p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-foreground-muted">
+                      {product.category || "Motorcycle tyre"}
+                    </p>
+                    <h3 className="mt-1 font-display text-base uppercase leading-snug text-foreground">{product.name}</h3>
+                    <p className="mt-2 font-display text-lg font-bold text-primary">{product.size}</p>
+                    {product.description && (
+                      <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-foreground-muted">{product.description}</p>
+                    )}
+                    {product.features.length > 0 && (
+                      <ul className="mt-3 space-y-1 text-[11px] text-foreground-muted">
+                        {product.features.slice(0, 2).map((feature) => <li key={feature}>• {feature}</li>)}
+                      </ul>
+                    )}
+                    <div className="mt-auto flex items-center justify-between gap-3 pt-4">
+                      <span className="font-display text-lg font-bold text-foreground">R{product.price.toLocaleString("en-ZA")}.00</span>
+                      <AddToCart product={product} onAddToCart={onAddToCart} />
+                    </div>
+                  </div>
+                </article>
+              ))}
             </div>
           )}
         </div>
       </div>
+
+      {mobileFiltersOpen && (
+        <div className="fixed inset-0 z-[60] lg:hidden">
+          <button
+            type="button"
+            aria-label="Close filters"
+            onClick={() => setMobileFiltersOpen(false)}
+            className="absolute inset-0 bg-neutral-950/70"
+          />
+          <div role="dialog" aria-modal="true" aria-label="Tyre filters" className="absolute inset-y-0 left-0 flex w-[min(88vw,360px)] flex-col bg-background p-4 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between border-b border-border pb-3">
+              <h3 className="font-display text-lg uppercase text-foreground">Filters</h3>
+              <button type="button" onClick={() => setMobileFiltersOpen(false)} aria-label="Close filters" className="grid size-9 place-items-center rounded-md border border-border text-foreground">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto">{filterContent}</div>
+            <button
+              type="button"
+              onClick={() => setMobileFiltersOpen(false)}
+              className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-xs font-black uppercase tracking-wider text-white"
+            >
+              Show {sortedProducts.length} products
+            </button>
+          </div>
+        </div>
+      )}
     </section>
+  );
+}
+
+function StockLabel({ product }: { product: TyreProduct }) {
+  const verified = Boolean(product.stockVerified);
+  const quantity = product.stockQuantity;
+  if (verified && quantity !== null && quantity !== undefined && quantity > 0) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-[9px] font-bold uppercase text-emerald-700 dark:text-emerald-400">
+        <CheckCircle2 size={11} /> In stock ({quantity})
+      </span>
+    );
+  }
+  if (verified && quantity === 0) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-red-500/20 bg-red-500/10 px-2 py-1 text-[9px] font-bold uppercase text-red-700 dark:text-red-400">
+        <AlertCircle size={11} /> Out of stock
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/20 bg-neutral-950/85 px-2 py-1 text-[9px] font-bold uppercase text-amber-300">
+      <HelpCircle size={11} /> Stock unverified
+    </span>
+  );
+}
+
+function AddToCart({
+  product,
+  onAddToCart,
+}: {
+  product: TyreProduct;
+  onAddToCart: (product: TyreProduct) => void;
+}) {
+  const inStock = Boolean(
+    product.stockVerified && product.stockQuantity !== null && product.stockQuantity !== undefined && product.stockQuantity > 0
+  );
+  return inStock ? (
+    <ShopButton variant="dark" className="shrink-0 gap-2 px-3 py-2 text-[10px] font-bold uppercase tracking-wider" onClick={() => onAddToCart(product)}>
+      Add <ShoppingBag size={13} />
+    </ShopButton>
+  ) : (
+    <button
+      type="button"
+      disabled
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-surface-soft px-3 py-2 text-[10px] font-bold uppercase text-foreground-muted"
+    >
+      <AlertCircle size={12} /> Unavailable
+    </button>
   );
 }
