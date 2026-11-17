@@ -20,6 +20,8 @@ import {
   ExternalLink,
   Layers,
   History,
+  Upload,
+  Trash2,
 } from "lucide-react";
 import {
   getAdminProducts,
@@ -27,6 +29,7 @@ import {
   updateProduct,
   updateProductStock,
   getInventoryHistory,
+  subscribeToProductsRealtime,
 } from "../../lib/productService";
 import type { DbProduct, InventoryHistoryItem } from "../../types";
 import {
@@ -52,6 +55,8 @@ export function AdminProducts() {
   // Modal / Form state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<DbProduct | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageProcessing, setImageProcessing] = useState(false);
 
   // Dedicated Change Quantity Modal state
   const [isQuantityModalOpen, setIsQuantityModalOpen] = useState(false);
@@ -109,6 +114,16 @@ export function AdminProducts() {
 
   useEffect(() => {
     loadProducts();
+    const unsubscribe = subscribeToProductsRealtime(() => {
+      getAdminProducts()
+        .then(setProducts)
+        .catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : "Failed to refresh products from Supabase.";
+          setErrorMessage(msg);
+        });
+    });
+
+    return unsubscribe;
   }, []);
 
   const showSuccess = (msg: string) => {
@@ -116,9 +131,82 @@ export function AdminProducts() {
     setTimeout(() => setSuccessMessage(null), 3500);
   };
 
+  const handleProductImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    event.target.value = "";
+
+    if (!file.type.startsWith("image/")) {
+      setErrorMessage("Please select a valid image file.");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setErrorMessage("Image file exceeds 8MB. Please choose a smaller file.");
+      return;
+    }
+
+    setImageProcessing(true);
+    setErrorMessage(null);
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== "string") {
+        setImageProcessing(false);
+        setErrorMessage("Could not read the selected image.");
+        return;
+      }
+
+      const image = new window.Image();
+      image.onload = () => {
+        const maxDimension = 800;
+        const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+        const context = canvas.getContext("2d");
+        if (!context) {
+          setImageProcessing(false);
+          setErrorMessage("Image processing is unavailable in this browser.");
+          return;
+        }
+
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        const compressedImage = canvas.toDataURL("image/jpeg", 0.84);
+        setImagePreview(compressedImage);
+        setFormData((current) => ({ ...current, image_url: compressedImage }));
+        setImageProcessing(false);
+      };
+      image.onerror = () => {
+        setImageProcessing(false);
+        setErrorMessage("Could not process the selected image.");
+      };
+      image.src = reader.result;
+    };
+    reader.onerror = () => {
+      setImageProcessing(false);
+      setErrorMessage("Could not read the selected image file.");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleArchiveProduct = async (product: DbProduct) => {
+    if (!window.confirm(`Archive "${product.name}"? It will be unpublished but retained for order and inventory history.`)) {
+      return;
+    }
+
+    try {
+      const archived = await updateProduct(product.id, { active: false });
+      setProducts((current) => current.map((item) => (item.id === archived.id ? archived : item)));
+      showSuccess(`"${product.name}" was unpublished and retained in product history.`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to archive product.";
+      setErrorMessage(msg);
+    }
+  };
+
   // Open modal for Create
   const handleOpenCreate = () => {
     setEditingProduct(null);
+    setImagePreview(null);
     setFormData({
       name: "",
       brand: "Vredestein",
@@ -145,6 +233,7 @@ export function AdminProducts() {
   // Open modal for Edit
   const handleOpenEdit = (p: DbProduct) => {
     setEditingProduct(p);
+    setImagePreview(p.image_url || null);
     setFormData({
       name: p.name,
       brand: p.brand || "Vredestein",
@@ -158,8 +247,8 @@ export function AdminProducts() {
       position: p.position || "Front",
       width: p.width ? String(p.width) : "",
       profile: p.profile ? String(p.profile) : "",
-      rim: p.rim ? String(p.rim) : "17",
-      tyre_type: p.tyre_type || "ST",
+      rim: p.rim ? String(p.rim) : "",
+      tyre_type: p.tyre_type || "",
       price: String(p.price),
       stock_quantity: p.stock_quantity !== null && p.stock_quantity !== undefined ? String(p.stock_quantity) : "",
       stock_verified: Boolean(p.stock_verified),
@@ -178,8 +267,20 @@ export function AdminProducts() {
       setErrorMessage("Product name is required.");
       return;
     }
-    if (!formData.price || isNaN(Number(formData.price)) || Number(formData.price) < 0) {
+    if (!formData.price || !Number.isFinite(Number(formData.price)) || Number(formData.price) < 0) {
       setErrorMessage("Please enter a valid selling price.");
+      return;
+    }
+
+    const stockText = formData.stock_quantity.trim();
+    const dimensionValues = [formData.width, formData.profile, formData.rim]
+      .filter((value) => value.trim() !== "");
+    if (dimensionValues.some((value) => !/^\d+$/.test(value) || Number(value) <= 0)) {
+      setErrorMessage("Width, profile, and rim must be positive whole numbers.");
+      return;
+    }
+    if (stockText && (!/^\d+$/.test(stockText) || Number(stockText) < 0)) {
+      setErrorMessage("Stock quantity must be a non-negative whole number.");
       return;
     }
 
@@ -187,7 +288,7 @@ export function AdminProducts() {
     setErrorMessage(null);
 
     try {
-      const stockVal = formData.stock_quantity.trim() === "" ? null : parseInt(formData.stock_quantity, 10);
+      const stockVal = stockText === "" ? null : Number(stockText);
       const payload = {
         name: formData.name,
         brand: formData.brand,
@@ -196,12 +297,12 @@ export function AdminProducts() {
         subcategory: formData.subcategory.trim() || null,
         product_type: formData.product_type,
         position: formData.position,
-        width: formData.width ? parseInt(formData.width, 10) : null,
-        profile: formData.profile ? parseInt(formData.profile, 10) : null,
-        rim: formData.rim ? parseInt(formData.rim, 10) : null,
+        width: formData.width ? Number(formData.width) : null,
+        profile: formData.profile ? Number(formData.profile) : null,
+        rim: formData.rim ? Number(formData.rim) : null,
         tyre_type: formData.tyre_type,
         price: parseFloat(formData.price),
-        stock_quantity: isNaN(stockVal as number) ? null : stockVal,
+        stock_quantity: stockVal,
         stock_verified: formData.stock_verified,
         description: formData.description,
         image_url: formData.image_url.trim() || null,
@@ -578,11 +679,24 @@ export function AdminProducts() {
               ) : (
                 filteredProducts.map((p) => {
                   const isQuickEditing = quickStockId === p.id;
-                  const sizeLabel = p.width && p.profile ? `${p.width}/${p.profile} ZR ${p.rim || 17}` : "N/A";
+                  const sizeType =
+                    p.brand?.toLowerCase() === "vredestein"
+                      ? "ZR "
+                      : p.tyre_type && !["ST", "NS"].includes(p.tyre_type.toUpperCase())
+                      ? `${p.tyre_type} `
+                      : "";
+                  const sizeLabel =
+                    p.width && p.profile && p.rim
+                      ? `${p.width}/${p.profile} ${sizeType}${p.rim}`
+                      : "N/A";
 
                   // Authoritative stock rendering according to prompt rules
                   let stockStatusBadge;
-                  if (!p.stock_verified) {
+                  if (
+                    !p.stock_verified ||
+                    p.stock_quantity === null ||
+                    p.stock_quantity === undefined
+                  ) {
                     stockStatusBadge = (
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 text-[11px] font-bold text-amber-300">
                         <HelpCircle size={12} /> Stock Not Verified
@@ -759,6 +873,15 @@ export function AdminProducts() {
                           >
                             <Edit2 size={13} /> Edit
                           </button>
+                          {p.active && (
+                            <button
+                              onClick={() => handleArchiveProduct(p)}
+                              title="Unpublish and retain the product for history"
+                              className="rounded-md border border-red-500/30 bg-red-500/10 p-2 text-red-300 hover:bg-red-500/20 transition-colors cursor-pointer"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1047,18 +1170,57 @@ export function AdminProducts() {
                   />
                 </div>
 
-                {/* Image URL */}
+                {/* Product image */}
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-1">
-                    Custom Image URL (Optional)
+                  <label className="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">
+                    Product Image (Optional)
                   </label>
-                  <input
-                    type="text"
-                    value={formData.image_url}
-                    onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                    className="w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3.5 py-2.5 text-sm text-white outline-none focus:border-primary"
-                    placeholder="https://... or leave empty to use bundled high-res tyre photography"
-                  />
+                  {imagePreview && (
+                    <div className="mb-3 flex items-center gap-3">
+                      <img
+                        src={imagePreview}
+                        alt="Product preview"
+                        className="size-20 rounded-lg border border-neutral-700 bg-neutral-950 object-contain p-1"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImagePreview(null);
+                          setFormData((current) => ({ ...current, image_url: "" }));
+                        }}
+                        className="rounded-md border border-neutral-700 px-3 py-2 text-xs font-semibold text-neutral-300 hover:text-white"
+                      >
+                        Remove image
+                      </button>
+                    </div>
+                  )}
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-neutral-700 bg-neutral-950 px-3.5 py-3 text-xs font-bold uppercase tracking-wider text-neutral-200 hover:border-primary">
+                      <Upload size={15} />
+                      {imageProcessing ? "Processing image..." : "Upload image"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={imageProcessing}
+                        onChange={handleProductImageUpload}
+                        className="sr-only"
+                      />
+                    </label>
+                    <input
+                      type="url"
+                      value={formData.image_url.startsWith("data:") ? "" : formData.image_url}
+                      onChange={(event) => {
+                        const imageUrl = event.target.value;
+                        setFormData((current) => ({ ...current, image_url: imageUrl }));
+                        setImagePreview(imageUrl || null);
+                      }}
+                      className="w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3.5 py-2.5 text-sm text-white outline-none focus:border-primary"
+                      placeholder="Or paste an image URL"
+                    />
+                  </div>
+                  <p className="mt-1.5 text-[10px] text-neutral-500">
+                    Images are resized and saved in the existing image_url field. Maximum upload size: 8MB.
+                  </p>
                 </div>
               </div>
 

@@ -11,7 +11,7 @@ import {
   X,
 } from "lucide-react";
 import type { Range, TyreProduct } from "../types";
-import { TYRE_BRANDS } from "../data/tyreCatalogueTaxonomy";
+import { TYRE_BRAND_TAXONOMY } from "../data/tyreCatalogueTaxonomy";
 import { ShopButton } from "./ShopButton";
 
 type SortOption = "relevance" | "name-asc" | "name-desc" | "price-asc" | "price-desc" | "newest";
@@ -23,6 +23,7 @@ interface TyresCatalogProps {
   selectedPosition: string;
   viewMode: "cards" | "table";
   products: TyreProduct[];
+  loadError?: string | null;
   sizeOptions: string[];
   onSelectRange: (range: Range) => void;
   onSelectSize: (size: string) => void;
@@ -56,6 +57,14 @@ function unique(values: Array<string | null | undefined>): string[] {
   return Array.from(new Set(values.map((value) => value?.trim()).filter((value): value is string => Boolean(value))));
 }
 
+function formatZar(price: number): string {
+  return new Intl.NumberFormat("en-ZA", {
+    style: "currency",
+    currency: "ZAR",
+    minimumFractionDigits: 2,
+  }).format(price);
+}
+
 function matchesFacet(product: TyreProduct, facet: Facet, value: string): boolean {
   if (!value) return true;
   switch (facet) {
@@ -82,6 +91,7 @@ export function TyresCatalog({
   selectedPosition,
   viewMode,
   products,
+  loadError,
   sizeOptions,
   onSelectRange,
   onSelectSize,
@@ -151,8 +161,16 @@ export function TyresCatalog({
   }, [matchingProducts, sort]);
 
   const brandOptions = useMemo(
-    () => unique([...TYRE_BRANDS, ...availableProducts.map((product) => product.brand || "Vredestein")]),
+    () => unique(availableProducts.map((product) => product.brand || "Vredestein")).sort((a, b) => a.localeCompare(b)),
     [availableProducts]
+  );
+  const brandNavigationOptions = useMemo(
+    () =>
+      unique([
+        ...Object.keys(TYRE_BRAND_TAXONOMY),
+        ...brandOptions.filter((brand) => !(brand in TYRE_BRAND_TAXONOMY)),
+      ]),
+    [brandOptions]
   );
   const categoryOptions = useMemo(
     () => unique(availableProducts.map((product) => product.category || "Other")).sort(),
@@ -182,8 +200,33 @@ export function TyresCatalog({
 
   const countFor = (facet: Facet, value: string) =>
     availableProducts.filter((product) => matches(product, facet) && matchesFacet(product, facet, value)).length;
+  const inStockCountFor = (brand: string) =>
+    availableProducts.filter(
+      (product) =>
+        matches(product, "brand") &&
+        matchesFacet(product, "brand", brand) &&
+        product.stockVerified &&
+        product.stockQuantity !== null &&
+        product.stockQuantity !== undefined &&
+        product.stockQuantity > 0
+    ).length;
 
   const categories = optionsFor("category");
+  const brandsWithVerifiedStock = useMemo(
+    () =>
+      new Set(
+        availableProducts
+          .filter(
+            (product) =>
+              product.stockVerified &&
+              product.stockQuantity !== null &&
+              product.stockQuantity !== undefined &&
+              product.stockQuantity > 0
+          )
+          .map((product) => product.brand || "Vredestein")
+      ),
+    [availableProducts]
+  );
   const activeFilters = [
     ...(range !== "All" ? [{ label: `Range: ${range}`, clear: () => onSelectRange("All") }] : []),
     ...(selectedSize !== "All sizes" ? [{ label: `Size: ${selectedSize}`, clear: () => onSelectSize("All sizes") }] : []),
@@ -299,6 +342,56 @@ export function TyresCatalog({
           Browse available motorcycle tyres by brand, model, fitment and riding category.
         </p>
       </div>
+
+      <nav aria-label="Tyre brands" className="mb-6 flex gap-2 overflow-x-auto pb-2">
+        <button
+          type="button"
+          onClick={() => setFilters((current) => ({ ...current, brand: "", model: "" }))}
+          aria-pressed={!filters.brand}
+          className={`shrink-0 rounded-lg border px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wide transition-colors ${
+            !filters.brand
+              ? "border-primary bg-primary text-white"
+              : "border-border bg-card text-foreground hover:border-primary"
+          }`}
+        >
+          All Tyres
+          <span className="ml-2 opacity-75">{countFor("brand", "")}</span>
+        </button>
+        {brandNavigationOptions.map((brand) => {
+          const hasProducts = brandOptions.includes(brand);
+          return (
+            <button
+              type="button"
+              key={brand}
+              onClick={() => selectFacet("brand", brand)}
+              aria-pressed={filters.brand === brand}
+              disabled={!hasProducts}
+              title={!hasProducts ? "No products from this brand are currently listed." : undefined}
+              className={`shrink-0 rounded-lg border px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wide transition-colors ${
+                filters.brand === brand
+                  ? "border-primary bg-primary text-white"
+                  : hasProducts
+                  ? "border-border bg-card text-foreground hover:border-primary"
+                  : "cursor-not-allowed border-border/60 bg-surface-soft text-foreground-muted"
+              }`}
+            >
+              <span className="block">{brand}</span>
+              <span className="mt-1 block text-[9px] font-semibold normal-case tracking-normal opacity-75">
+                {!hasProducts || !brandsWithVerifiedStock.has(brand)
+                  ? "Coming soon"
+                  : `${inStockCountFor(brand)} in stock · ${countFor("brand", brand)} products`}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+
+      {loadError && (
+        <div role="alert" className="mb-5 rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm text-red-700 dark:text-red-300">
+          The catalogue could not be loaded from Supabase. Please try again shortly.
+          <span className="mt-1 block text-xs opacity-80">{loadError}</span>
+        </div>
+      )}
 
       {categories.length > 0 && (
         <nav aria-label="Tyre categories" className="mb-6 flex gap-2 overflow-x-auto pb-2">
@@ -443,7 +536,7 @@ export function TyresCatalog({
                       <td className="p-4 font-display font-semibold text-foreground">{product.size}</td>
                       <td className="p-4 text-xs text-foreground-muted">{product.position}</td>
                       <td className="p-4"><StockLabel product={product} /></td>
-                      <td className="p-4 font-display font-bold text-primary">R {product.price.toLocaleString("en-ZA")}.00</td>
+                      <td className="p-4 font-display font-bold text-primary">{formatZar(product.price)}</td>
                       <td className="p-4 text-right">
                         <AddToCart product={product} onAddToCart={onAddToCart} />
                       </td>
@@ -492,7 +585,7 @@ export function TyresCatalog({
                       </ul>
                     )}
                     <div className="mt-auto flex items-center justify-between gap-3 pt-4">
-                      <span className="font-display text-lg font-bold text-foreground">R{product.price.toLocaleString("en-ZA")}.00</span>
+                      <span className="font-display text-lg font-bold text-foreground">{formatZar(product.price)}</span>
                       <AddToCart product={product} onAddToCart={onAddToCart} />
                     </div>
                   </div>

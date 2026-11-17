@@ -79,7 +79,7 @@ export function mapDbProductToTyre(p: DbProduct): TyreProduct {
     image,
     features,
     stockQuantity: p.stock_quantity !== null && p.stock_quantity !== undefined ? Number(p.stock_quantity) : null,
-    stockVerified: Boolean(p.stock_verified || (p.stock_quantity !== null && p.stock_quantity !== undefined)),
+    stockVerified: Boolean(p.stock_verified),
     active: p.active !== false,
     description: p.description || "",
   };
@@ -110,18 +110,19 @@ export async function getStorefrontProducts(): Promise<TyreProduct[]> {
       .order("created_at", { ascending: true });
 
     if (error) {
-      console.error("[productService] Error fetching storefront products:", error);
-      return getFallbackProducts();
+      throw new Error(`Failed to load storefront products: ${error.message}`);
     }
 
     if (!data || data.length === 0) {
-      return getFallbackProducts();
+      return [];
     }
 
     return (data as DbProduct[]).map(mapDbProductToTyre);
   } catch (err) {
-    console.error("[productService] Unexpected error fetching storefront products:", err);
-    return getFallbackProducts();
+    if (err instanceof Error) {
+      throw err;
+    }
+    throw new Error(`Unexpected error loading storefront products: ${String(err)}`);
   }
 }
 

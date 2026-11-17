@@ -15,7 +15,7 @@ import { Footer } from "./components/Footer";
 import { CartDrawer } from "./components/CartDrawer";
 import { MobileQuickBar } from "./components/MobileQuickBar";
 
-import { tyreProducts as fallbackProducts, tyreCombos as fallbackCombos } from "./data/products";
+import { tyreCombos as fallbackCombos } from "./data/products";
 import type { CartItem, Range, TyreProduct, TyreCombo, AccessoryItem } from "./types";
 import backgroundAsset from "./assets/background.png";
 import { resolveAsset } from "./lib/assetHelper";
@@ -32,7 +32,8 @@ import {
 } from "./lib/productService";
 
 export default function App() {
-  const [products, setProducts] = useState<TyreProduct[]>(fallbackProducts);
+  const [products, setProducts] = useState<TyreProduct[]>([]);
+  const [productLoadError, setProductLoadError] = useState<string | null>(null);
   const [combos, setCombos] = useState<TyreCombo[]>(fallbackCombos);
   const [accessories, setAccessories] = useState<AccessoryItem[]>([]);
   const [range, setRange] = useState<Range>("All");
@@ -73,11 +74,18 @@ export default function App() {
     // Load products
     getStorefrontProducts()
       .then((data) => {
-        if (isMounted && data.length > 0) {
+        if (isMounted) {
           setProducts(data);
+          setProductLoadError(null);
         }
       })
-      .catch((err) => console.warn("[App] Error loading products:", err));
+      .catch((err) => {
+        console.error("[App] Error loading products:", err);
+        if (isMounted) {
+          setProducts([]);
+          setProductLoadError(err instanceof Error ? err.message : "Products could not be loaded.");
+        }
+      });
 
     // Load combos from Supabase
     getStorefrontCombos()
@@ -146,11 +154,18 @@ export default function App() {
     const refreshData = () => {
       getStorefrontProducts()
         .then((data) => {
-          if (isMounted && data.length > 0) {
+          if (isMounted) {
             setProducts(data);
+            setProductLoadError(null);
           }
         })
-        .catch(() => {});
+        .catch((err) => {
+          console.error("[App] Error refreshing products:", err);
+          if (isMounted) {
+            setProducts([]);
+            setProductLoadError(err instanceof Error ? err.message : "Products could not be refreshed.");
+          }
+        });
 
       getStorefrontCombos()
         .then((data) => {
@@ -481,6 +496,7 @@ export default function App() {
           selectedPosition={selectedPosition}
           viewMode={tyreViewMode}
           products={products}
+          loadError={productLoadError}
           sizeOptions={sizeOptions}
           onSelectRange={setRange}
           onSelectSize={setSelectedSize}
