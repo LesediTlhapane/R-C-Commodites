@@ -473,23 +473,7 @@ export default function App() {
           onReset={handleResetFinder}
         />
 
-        {/* 3. Featured Tyres / Ranges Section */}
-        <FeaturedRanges
-          onSelectRange={(r) => {
-            setRange(r);
-            setSelectedSize("All sizes");
-            setSelectedPosition("All");
-          }}
-          onScrollToTyres={() => scrollTo("tyres")}
-        />
-
-        {/* 4. Combos Deals Section */}
-        <CombosSection
-          combos={combos}
-          onAddCombo={addComboToCart}
-        />
-
-        {/* 5. Tyres Catalog Section */}
+        {/* 3. Tyres Catalog Section */}
         <TyresCatalog
           range={range}
           selectedSize={selectedSize}
@@ -508,6 +492,22 @@ export default function App() {
             setSelectedSize("All sizes");
             setSelectedPosition("All");
           }}
+        />
+
+        {/* 4. Featured Tyres / Ranges Section */}
+        <FeaturedRanges
+          onSelectRange={(r) => {
+            setRange(r);
+            setSelectedSize("All sizes");
+            setSelectedPosition("All");
+          }}
+          onScrollToTyres={() => scrollTo("tyres")}
+        />
+
+        {/* 5. Combos Deals Section */}
+        <CombosSection
+          combos={combos}
+          onAddCombo={addComboToCart}
         />
 
         {/* 6. Performance & Brand Credibility Gallery */}
